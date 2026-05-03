@@ -1,0 +1,88 @@
+import type { AreaGroup } from "@/types/location";
+
+export const AREA_GROUPS: AreaGroup[] = [
+  {
+    region: "東京23区",
+    areas: [
+      { id: "chiyoda", name: "千代田区", region: "東京23区" },
+      { id: "chuo", name: "中央区", region: "東京23区" },
+      { id: "minato", name: "港区", region: "東京23区" },
+      { id: "shinjuku", name: "新宿区", region: "東京23区" },
+      { id: "bunkyo", name: "文京区", region: "東京23区" },
+      { id: "taito", name: "台東区", region: "東京23区" },
+      { id: "sumida", name: "墨田区", region: "東京23区" },
+      { id: "koto", name: "江東区", region: "東京23区" },
+      { id: "shinagawa", name: "品川区", region: "東京23区" },
+      { id: "meguro", name: "目黒区", region: "東京23区" },
+      { id: "ota", name: "大田区", region: "東京23区" },
+      { id: "setagaya", name: "世田谷区", region: "東京23区" },
+      { id: "shibuya", name: "渋谷区", region: "東京23区" },
+      { id: "nakano", name: "中野区", region: "東京23区" },
+      { id: "suginami", name: "杉並区", region: "東京23区" },
+      { id: "toshima", name: "豊島区", region: "東京23区" },
+      { id: "kita", name: "北区", region: "東京23区" },
+      { id: "arakawa", name: "荒川区", region: "東京23区" },
+      { id: "itabashi", name: "板橋区", region: "東京23区" },
+      { id: "nerima", name: "練馬区", region: "東京23区" },
+      { id: "adachi", name: "足立区", region: "東京23区" },
+      { id: "katsushika", name: "葛飾区", region: "東京23区" },
+      { id: "edogawa", name: "江戸川区", region: "東京23区" },
+    ],
+  },
+  {
+    region: "東京市部",
+    areas: [
+      { id: "hachioji", name: "八王子市", region: "東京市部" },
+      { id: "tachikawa", name: "立川市", region: "東京市部" },
+      { id: "musashino", name: "武蔵野市", region: "東京市部" },
+      { id: "mitaka", name: "三鷹市", region: "東京市部" },
+      { id: "fuchu", name: "府中市", region: "東京市部" },
+      { id: "chofu", name: "調布市", region: "東京市部" },
+      { id: "machida", name: "町田市", region: "東京市部" },
+      { id: "kodaira", name: "小平市", region: "東京市部" },
+      { id: "hino", name: "日野市", region: "東京市部" },
+      { id: "tama", name: "多摩市", region: "東京市部" },
+    ],
+  },
+  {
+    region: "神奈川県",
+    areas: [
+      { id: "yokohama", name: "横浜市", region: "神奈川県" },
+      { id: "kawasaki", name: "川崎市", region: "神奈川県" },
+      { id: "sagamihara", name: "相模原市", region: "神奈川県" },
+      { id: "fujisawa", name: "藤沢市", region: "神奈川県" },
+      { id: "yokosuka", name: "横須賀市", region: "神奈川県" },
+    ],
+  },
+  {
+    region: "埼玉県",
+    areas: [
+      { id: "saitama", name: "さいたま市", region: "埼玉県" },
+      { id: "kawaguchi", name: "川口市", region: "埼玉県" },
+      { id: "kawagoe", name: "川越市", region: "埼玉県" },
+      { id: "tokorozawa", name: "所沢市", region: "埼玉県" },
+      { id: "koshigaya", name: "越谷市", region: "埼玉県" },
+    ],
+  },
+  {
+    region: "千葉県",
+    areas: [
+      { id: "chiba", name: "千葉市", region: "千葉県" },
+      { id: "funabashi", name: "船橋市", region: "千葉県" },
+      { id: "matsudo", name: "松戸市", region: "千葉県" },
+      { id: "ichikawa", name: "市川市", region: "千葉県" },
+      { id: "kashiwa", name: "柏市", region: "千葉県" },
+    ],
+  },
+  {
+    region: "大阪府",
+    areas: [
+      { id: "osaka-kita", name: "大阪市北区", region: "大阪府" },
+      { id: "osaka-chuo", name: "大阪市中央区", region: "大阪府" },
+      { id: "osaka-naniwa", name: "大阪市浪速区", region: "大阪府" },
+      { id: "osaka-tennoji", name: "大阪市天王寺区", region: "大阪府" },
+      { id: "sakai", name: "堺市", region: "大阪府" },
+      { id: "higashiosaka", name: "東大阪市", region: "大阪府" },
+    ],
+  },
+];

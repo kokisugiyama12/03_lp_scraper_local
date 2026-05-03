@@ -2,10 +2,12 @@ export interface ContactInfo {
   phoneNumber: string | null;
   presidentName: string | null;
   companyName: string | null;
+  allPhoneNumbers?: string[];
 }
 
 export interface AdResult {
   headline: string;
+  description: string;
   url: string;
   displayUrl: string;
 }

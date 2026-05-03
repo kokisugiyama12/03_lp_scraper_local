@@ -41,7 +41,7 @@ export async function searchGoogleAds(
       await randomDelay(2000, 3000);
 
       const pageAds = await page.evaluate(() => {
-        const found: { headline: string; url: string }[] = [];
+        const found: { headline: string; description: string; url: string }[] = [];
         const pageDomains = new Set<string>();
 
         function getDomain(u: string): string {
@@ -57,6 +57,18 @@ export async function searchGoogleAds(
           );
         }
 
+        function getAdDescription(adBlock: Element): string {
+          const allText = (adBlock as HTMLElement).innerText || adBlock.textContent || "";
+          const lines = allText.split("\n").map(l => l.trim()).filter(l => l.length > 10);
+          // Skip the first few lines (domain, headline) and get the description
+          for (const line of lines.slice(1)) {
+            if (line.length > 20 && !line.includes("http") && !line.includes(".co.jp") && !line.includes(".com")) {
+              return line;
+            }
+          }
+          return "";
+        }
+
         function extractFromContainer(container: Element) {
           const links = container.querySelectorAll('a[href^="http"]');
           for (const link of links) {
@@ -67,7 +79,9 @@ export async function searchGoogleAds(
             pageDomains.add(domain);
             const headline = link.textContent?.trim().split("\n")[0]?.trim() || "";
             if (headline.length > 3) {
-              found.push({ headline, url: href });
+              const adBlock = link.closest("[data-text-ad]") || container;
+              const description = getAdDescription(adBlock);
+              found.push({ headline, description, url: href });
             }
           }
         }
@@ -114,6 +128,7 @@ export async function searchGoogleAds(
         seenDomains.add(domain);
         results.push({
           headline: ad.headline,
+          description: ad.description,
           url: ad.url,
           displayUrl: ad.url,
         });

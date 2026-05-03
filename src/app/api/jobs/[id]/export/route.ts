@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getJob, getResultsForJob, updateJobStatus } from "@/lib/db/queries";
+import { getJob, getResultsForJob, updateJobStatus, upsertExportHistory } from "@/lib/db/queries";
 import { exportToSheet } from "@/lib/api/google-sheets";
 
 export async function POST(
@@ -29,6 +29,7 @@ export async function POST(
 
   const body = await request.json().catch(() => ({}));
   const spreadsheetId = body.spreadsheetId || job.spreadsheetId;
+  const append = body.append === true;
 
   if (!spreadsheetId) {
     return NextResponse.json(
@@ -39,12 +40,23 @@ export async function POST(
 
   try {
     const results = getResultsForJob(id);
-    const rowsWritten = await exportToSheet(spreadsheetId, results, sessionId);
+
+    const locations = JSON.parse(job.locationsJson || "[]");
+    const locationNames = locations.map((l: { name: string }) => l.name).join("、");
+
+    const { rowsWritten, sheetName } = await exportToSheet(spreadsheetId, results, sessionId, {
+      keyword: job.keyword,
+      locations: locationNames,
+      searchedAt: job.createdAt,
+      maxPages: job.maxPages,
+    }, { append });
 
     updateJobStatus(id, job.status, {
       exportedAt: new Date().toISOString(),
       spreadsheetId,
     });
+
+    upsertExportHistory(spreadsheetId, sheetName);
 
     return NextResponse.json({
       rowsWritten,

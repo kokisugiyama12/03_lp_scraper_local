@@ -1,5 +1,5 @@
 import { getDb } from "./index";
-import { searchJobs, searchQueries, searchResults, oauthSessions } from "./schema";
+import { searchJobs, searchQueries, searchResults, oauthSessions, exportHistory } from "./schema";
 import { eq, desc } from "drizzle-orm";
 
 export function createJob(job: {
@@ -125,6 +125,7 @@ export function createResult(result: {
   phoneNumber?: string;
   presidentName?: string;
   adHeadline?: string;
+  adDescription?: string;
   locationName: string;
   extractionStatus: string;
   rawPageText?: string;
@@ -138,6 +139,7 @@ export function createResult(result: {
     phoneNumber: result.phoneNumber ?? null,
     presidentName: result.presidentName ?? null,
     adHeadline: result.adHeadline ?? null,
+    adDescription: result.adDescription ?? null,
     locationName: result.locationName,
     extractionStatus: result.extractionStatus,
     rawPageText: result.rawPageText ?? null,
@@ -203,4 +205,42 @@ export function deleteOAuthSession(id: string) {
     .delete(oauthSessions)
     .where(eq(oauthSessions.id, id))
     .run();
+}
+
+export function upsertExportHistory(spreadsheetId: string, spreadsheetName?: string) {
+  const existing = getDb()
+    .select()
+    .from(exportHistory)
+    .where(eq(exportHistory.spreadsheetId, spreadsheetId))
+    .get();
+
+  const now = new Date().toISOString();
+  if (existing) {
+    getDb()
+      .update(exportHistory)
+      .set({
+        lastExportedAt: now,
+        spreadsheetName: spreadsheetName ?? existing.spreadsheetName,
+      })
+      .where(eq(exportHistory.id, existing.id))
+      .run();
+  } else {
+    getDb()
+      .insert(exportHistory)
+      .values({
+        spreadsheetId,
+        spreadsheetName: spreadsheetName ?? null,
+        lastExportedAt: now,
+      })
+      .run();
+  }
+}
+
+export function getExportHistoryList() {
+  return getDb()
+    .select()
+    .from(exportHistory)
+    .orderBy(desc(exportHistory.lastExportedAt))
+    .limit(10)
+    .all();
 }

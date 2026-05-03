@@ -44,6 +44,16 @@ export const oauthSessions = sqliteTable("oauth_sessions", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
+export const exportHistory = sqliteTable("export_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  spreadsheetId: text("spreadsheet_id").notNull(),
+  spreadsheetName: text("spreadsheet_name"),
+  lastExportedAt: text("last_exported_at").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
 export const searchResults = sqliteTable("search_results", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   jobId: text("job_id")
@@ -58,6 +68,7 @@ export const searchResults = sqliteTable("search_results", {
   phoneNumber: text("phone_number"),
   presidentName: text("president_name"),
   adHeadline: text("ad_headline"),
+  adDescription: text("ad_description"),
   locationName: text("location_name").notNull(),
   extractionStatus: text("extraction_status").notNull().default("pending"),
   rawPageText: text("raw_page_text"),

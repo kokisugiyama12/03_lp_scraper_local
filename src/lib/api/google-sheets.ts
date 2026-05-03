@@ -1,4 +1,5 @@
-import { google } from "googleapis";
+import { getSheetsClient, refreshAccessToken } from "@/lib/auth/google-oauth";
+import { getOAuthSession, upsertOAuthSession } from "@/lib/db/queries";
 
 interface SheetRow {
   locationName: string;
@@ -11,29 +12,45 @@ interface SheetRow {
   createdAt: string;
 }
 
-function getAuth() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-
-  if (!email || !key) {
-    throw new Error(
-      "Google Service Account の認証情報が設定されていません。GOOGLE_SERVICE_ACCOUNT_EMAIL と GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY を .env.local に設定してください。"
-    );
+async function getValidAccessToken(sessionId: string): Promise<string> {
+  const session = getOAuthSession(sessionId);
+  if (!session) {
+    throw new Error("Google認証が必要です。「Googleアカウントで認証」ボタンから認証してください。");
   }
 
-  return new google.auth.JWT({
-    email,
-    key: key.replace(/\\n/g, "\n"),
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  const isExpired = new Date(session.expiresAt) < new Date();
+
+  if (!isExpired) {
+    return session.accessToken;
+  }
+
+  if (!session.refreshToken) {
+    throw new Error("認証の有効期限が切れました。再度認証してください。");
+  }
+
+  const credentials = await refreshAccessToken(session.refreshToken);
+
+  const expiresAt = credentials.expiry_date
+    ? new Date(credentials.expiry_date).toISOString()
+    : new Date(Date.now() + 3600 * 1000).toISOString();
+
+  upsertOAuthSession({
+    id: sessionId,
+    accessToken: credentials.access_token!,
+    refreshToken: credentials.refresh_token,
+    expiresAt,
   });
+
+  return credentials.access_token!;
 }
 
 export async function exportToSheet(
   spreadsheetId: string,
-  results: SheetRow[]
+  results: SheetRow[],
+  sessionId: string
 ): Promise<number> {
-  const auth = getAuth();
-  const sheets = google.sheets({ version: "v4", auth });
+  const accessToken = await getValidAccessToken(sessionId);
+  const sheets = getSheetsClient(accessToken);
 
   const header = [
     "検索エリア",
@@ -59,14 +76,17 @@ export async function exportToSheet(
 
   const values = [header, ...rows];
 
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const firstSheet = meta.data.sheets?.[0]?.properties?.title ?? "Sheet1";
+
   await sheets.spreadsheets.values.clear({
     spreadsheetId,
-    range: "Sheet1",
+    range: firstSheet,
   });
 
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: "Sheet1!A1",
+    range: `${firstSheet}!A1`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values },
   });

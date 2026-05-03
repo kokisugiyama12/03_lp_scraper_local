@@ -1,0 +1,117 @@
+export interface Prefecture {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  isCity?: boolean;
+}
+
+export interface PrefectureGroup {
+  region: string;
+  prefectures: Prefecture[];
+}
+
+export const PREFECTURE_GROUPS: PrefectureGroup[] = [
+  {
+    region: "北海道・東北",
+    prefectures: [
+      { id: "hokkaido", name: "北海道", lat: 43.0646, lng: 141.3468 },
+      { id: "sapporo", name: "札幌市", lat: 43.0618, lng: 141.3545, isCity: true },
+      { id: "aomori", name: "青森県", lat: 40.8244, lng: 140.7400 },
+      { id: "iwate", name: "岩手県", lat: 39.7036, lng: 141.1527 },
+      { id: "miyagi", name: "宮城県", lat: 38.2688, lng: 140.8721 },
+      { id: "sendai", name: "仙台市", lat: 38.2682, lng: 140.8694, isCity: true },
+      { id: "akita", name: "秋田県", lat: 39.7186, lng: 140.1024 },
+      { id: "yamagata", name: "山形県", lat: 38.2405, lng: 140.3634 },
+      { id: "fukushima", name: "福島県", lat: 37.7503, lng: 140.4676 },
+    ],
+  },
+  {
+    region: "関東",
+    prefectures: [
+      { id: "ibaraki", name: "茨城県", lat: 36.3418, lng: 140.4468 },
+      { id: "tochigi", name: "栃木県", lat: 36.5658, lng: 139.8836 },
+      { id: "gunma", name: "群馬県", lat: 36.3912, lng: 139.0608 },
+      { id: "saitama", name: "埼玉県", lat: 35.8569, lng: 139.6489 },
+      { id: "saitama-city", name: "さいたま市", lat: 35.8617, lng: 139.6455, isCity: true },
+      { id: "chiba", name: "千葉県", lat: 35.6047, lng: 140.1233 },
+      { id: "chiba-city", name: "千葉市", lat: 35.6047, lng: 140.1233, isCity: true },
+      { id: "tokyo", name: "東京都", lat: 35.6762, lng: 139.6503 },
+      { id: "kanagawa", name: "神奈川県", lat: 35.4478, lng: 139.6425 },
+      { id: "yokohama", name: "横浜市", lat: 35.4437, lng: 139.6380, isCity: true },
+      { id: "kawasaki", name: "川崎市", lat: 35.5309, lng: 139.7030, isCity: true },
+      { id: "sagamihara", name: "相模原市", lat: 35.5714, lng: 139.3735, isCity: true },
+    ],
+  },
+  {
+    region: "中部",
+    prefectures: [
+      { id: "niigata", name: "新潟県", lat: 37.9026, lng: 139.0236 },
+      { id: "niigata-city", name: "新潟市", lat: 37.9162, lng: 139.0364, isCity: true },
+      { id: "toyama", name: "富山県", lat: 36.6953, lng: 137.2113 },
+      { id: "ishikawa", name: "石川県", lat: 36.5946, lng: 136.6256 },
+      { id: "fukui", name: "福井県", lat: 36.0652, lng: 136.2217 },
+      { id: "yamanashi", name: "山梨県", lat: 35.6642, lng: 138.5684 },
+      { id: "nagano", name: "長野県", lat: 36.2321, lng: 138.1810 },
+      { id: "gifu", name: "岐阜県", lat: 35.3912, lng: 136.7223 },
+      { id: "shizuoka", name: "静岡県", lat: 34.9769, lng: 138.3831 },
+      { id: "shizuoka-city", name: "静岡市", lat: 34.9756, lng: 138.3827, isCity: true },
+      { id: "hamamatsu", name: "浜松市", lat: 34.7108, lng: 137.7261, isCity: true },
+      { id: "aichi", name: "愛知県", lat: 35.1802, lng: 136.9066 },
+      { id: "nagoya", name: "名古屋市", lat: 35.1815, lng: 136.9066, isCity: true },
+    ],
+  },
+  {
+    region: "近畿",
+    prefectures: [
+      { id: "mie", name: "三重県", lat: 34.7303, lng: 136.5086 },
+      { id: "shiga", name: "滋賀県", lat: 35.0045, lng: 135.8686 },
+      { id: "kyoto", name: "京都府", lat: 35.0116, lng: 135.7681 },
+      { id: "kyoto-city", name: "京都市", lat: 35.0116, lng: 135.7681, isCity: true },
+      { id: "osaka", name: "大阪府", lat: 34.6937, lng: 135.5023 },
+      { id: "osaka-city", name: "大阪市", lat: 34.6937, lng: 135.5023, isCity: true },
+      { id: "sakai", name: "堺市", lat: 34.5733, lng: 135.4830, isCity: true },
+      { id: "hyogo", name: "兵庫県", lat: 34.6913, lng: 135.1830 },
+      { id: "kobe", name: "神戸市", lat: 34.6901, lng: 135.1956, isCity: true },
+      { id: "nara", name: "奈良県", lat: 34.6852, lng: 135.8329 },
+      { id: "wakayama", name: "和歌山県", lat: 34.2260, lng: 135.1675 },
+    ],
+  },
+  {
+    region: "中国",
+    prefectures: [
+      { id: "tottori", name: "鳥取県", lat: 35.5039, lng: 134.2383 },
+      { id: "shimane", name: "島根県", lat: 35.4723, lng: 133.0505 },
+      { id: "okayama", name: "岡山県", lat: 34.6618, lng: 133.9344 },
+      { id: "okayama-city", name: "岡山市", lat: 34.6618, lng: 133.9344, isCity: true },
+      { id: "hiroshima", name: "広島県", lat: 34.3966, lng: 132.4596 },
+      { id: "hiroshima-city", name: "広島市", lat: 34.3853, lng: 132.4553, isCity: true },
+      { id: "yamaguchi", name: "山口県", lat: 34.1860, lng: 131.4714 },
+    ],
+  },
+  {
+    region: "四国",
+    prefectures: [
+      { id: "tokushima", name: "徳島県", lat: 34.0658, lng: 134.5593 },
+      { id: "kagawa", name: "香川県", lat: 34.3401, lng: 134.0434 },
+      { id: "ehime", name: "愛媛県", lat: 33.8416, lng: 132.7657 },
+      { id: "kochi", name: "高知県", lat: 33.5597, lng: 133.5311 },
+    ],
+  },
+  {
+    region: "九州・沖縄",
+    prefectures: [
+      { id: "fukuoka", name: "福岡県", lat: 33.6064, lng: 130.4183 },
+      { id: "kitakyushu", name: "北九州市", lat: 33.8834, lng: 130.8752, isCity: true },
+      { id: "fukuoka-city", name: "福岡市", lat: 33.5904, lng: 130.4017, isCity: true },
+      { id: "saga", name: "佐賀県", lat: 33.2494, lng: 130.2988 },
+      { id: "nagasaki", name: "長崎県", lat: 32.7448, lng: 129.8737 },
+      { id: "kumamoto", name: "熊本県", lat: 32.7898, lng: 130.7417 },
+      { id: "kumamoto-city", name: "熊本市", lat: 32.7898, lng: 130.7417, isCity: true },
+      { id: "oita", name: "大分県", lat: 33.2382, lng: 131.6126 },
+      { id: "miyazaki", name: "宮崎県", lat: 31.9111, lng: 131.4239 },
+      { id: "kagoshima", name: "鹿児島県", lat: 31.5602, lng: 130.5581 },
+      { id: "okinawa", name: "沖縄県", lat: 26.2124, lng: 127.6809 },
+    ],
+  },
+];

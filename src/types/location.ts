@@ -29,5 +29,7 @@ export interface TrainLineGroup {
 export interface SelectedLocation {
   id: string;
   name: string;
-  type: "area" | "station";
+  type: "area" | "station" | "prefecture";
+  lat?: number;
+  lng?: number;
 }

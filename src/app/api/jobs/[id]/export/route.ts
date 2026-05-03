@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getJob, getResultsForJob, updateJobStatus } from "@/lib/db/queries";
 import { exportToSheet } from "@/lib/api/google-sheets";
 
@@ -16,6 +17,16 @@ export async function POST(
     );
   }
 
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get("session_id")?.value;
+
+  if (!sessionId) {
+    return NextResponse.json(
+      { error: "Google認証が必要です", needsAuth: true },
+      { status: 401 }
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const spreadsheetId = body.spreadsheetId || job.spreadsheetId;
 
@@ -28,23 +39,26 @@ export async function POST(
 
   try {
     const results = getResultsForJob(id);
-    const rowsWritten = await exportToSheet(spreadsheetId, results);
+    const rowsWritten = await exportToSheet(spreadsheetId, results, sessionId);
 
     updateJobStatus(id, job.status, {
       exportedAt: new Date().toISOString(),
+      spreadsheetId,
     });
 
-    return NextResponse.json({ rowsWritten });
+    return NextResponse.json({
+      rowsWritten,
+      spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+    });
   } catch (error) {
     console.error("Export error:", error);
+
+    const message = error instanceof Error ? error.message : "エクスポートに失敗しました";
+    const needsAuth = message.includes("認証");
+
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "エクスポートに失敗しました",
-      },
-      { status: 500 }
+      { error: message, needsAuth },
+      { status: needsAuth ? 401 : 500 }
     );
   }
 }

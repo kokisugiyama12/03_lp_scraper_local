@@ -1,5 +1,5 @@
 import { getDb } from "./index";
-import { searchJobs, searchQueries, searchResults } from "./schema";
+import { searchJobs, searchQueries, searchResults, oauthSessions } from "./schema";
 import { eq, desc } from "drizzle-orm";
 
 export function createJob(job: {
@@ -8,6 +8,7 @@ export function createJob(job: {
   locationsJson: string;
   spreadsheetId?: string;
   totalQueries: number;
+  maxPages?: number;
 }) {
   getDb().insert(searchJobs).values({
     id: job.id,
@@ -15,6 +16,7 @@ export function createJob(job: {
     locationsJson: job.locationsJson,
     spreadsheetId: job.spreadsheetId ?? null,
     totalQueries: job.totalQueries,
+    maxPages: job.maxPages ?? 1,
   }).run();
 }
 
@@ -39,6 +41,7 @@ export function updateJobStatus(
     totalResults: number;
     errorMessage: string;
     exportedAt: string;
+    spreadsheetId: string;
   }>
 ) {
   getDb()
@@ -83,6 +86,7 @@ export function createSearchQueries(
     jobId: string;
     locationName: string;
     searchQuery: string;
+    geoHeader?: string | null;
   }[]
 ) {
   getDb().insert(searchQueries).values(queries).run();
@@ -146,4 +150,57 @@ export function getResultsForJob(jobId: string) {
     .from(searchResults)
     .where(eq(searchResults.jobId, jobId))
     .all();
+}
+
+export function upsertOAuthSession(session: {
+  id: string;
+  accessToken: string;
+  refreshToken?: string | null;
+  expiresAt: string;
+  email?: string | null;
+}) {
+  const existing = getDb()
+    .select()
+    .from(oauthSessions)
+    .where(eq(oauthSessions.id, session.id))
+    .get();
+
+  if (existing) {
+    getDb()
+      .update(oauthSessions)
+      .set({
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken ?? existing.refreshToken,
+        expiresAt: session.expiresAt,
+        email: session.email ?? existing.email,
+      })
+      .where(eq(oauthSessions.id, session.id))
+      .run();
+  } else {
+    getDb()
+      .insert(oauthSessions)
+      .values({
+        id: session.id,
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken ?? null,
+        expiresAt: session.expiresAt,
+        email: session.email ?? null,
+      })
+      .run();
+  }
+}
+
+export function getOAuthSession(id: string) {
+  return getDb()
+    .select()
+    .from(oauthSessions)
+    .where(eq(oauthSessions.id, id))
+    .get();
+}
+
+export function deleteOAuthSession(id: string) {
+  getDb()
+    .delete(oauthSessions)
+    .where(eq(oauthSessions.id, id))
+    .run();
 }

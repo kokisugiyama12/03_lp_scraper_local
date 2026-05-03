@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { createJob, createSearchQueries, listJobs } from "@/lib/db/queries";
 import { runSearchJob } from "@/lib/services/search-orchestrator";
+import { formatXGeoHeader } from "@/lib/config/uule";
 import type { SelectedLocation } from "@/types/location";
 
 export async function POST(request: Request) {
@@ -11,10 +12,12 @@ export async function POST(request: Request) {
       keyword,
       locations,
       spreadsheetId,
+      maxPages,
     }: {
       keyword: string;
       locations: SelectedLocation[];
       spreadsheetId?: string;
+      maxPages?: number;
     } = body;
 
     if (!keyword?.trim()) {
@@ -31,6 +34,7 @@ export async function POST(request: Request) {
     }
 
     const jobId = nanoid(12);
+    const clampedPages = Math.min(Math.max(maxPages ?? 1, 1), 5);
 
     createJob({
       id: jobId,
@@ -38,13 +42,25 @@ export async function POST(request: Request) {
       locationsJson: JSON.stringify(locations),
       spreadsheetId: spreadsheetId || undefined,
       totalQueries: locations.length,
+      maxPages: clampedPages,
     });
 
-    const queries = locations.map((loc) => ({
-      jobId,
-      locationName: loc.name,
-      searchQuery: `${keyword.trim()} ${loc.name}`,
-    }));
+    const queries = locations.map((loc) => {
+      if (loc.type === "prefecture" && loc.lat != null && loc.lng != null) {
+        return {
+          jobId,
+          locationName: loc.name,
+          searchQuery: keyword.trim(),
+          geoHeader: formatXGeoHeader(loc.lat, loc.lng),
+        };
+      }
+      return {
+        jobId,
+        locationName: loc.name,
+        searchQuery: `${keyword.trim()} ${loc.name}`,
+        geoHeader: null,
+      };
+    });
 
     createSearchQueries(queries);
 

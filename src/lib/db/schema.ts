@@ -10,6 +10,7 @@ export const searchJobs = sqliteTable("search_jobs", {
   completedQueries: integer("completed_queries").notNull().default(0),
   totalResults: integer("total_results").notNull().default(0),
   errorMessage: text("error_message"),
+  maxPages: integer("max_pages").notNull().default(1),
   exportedAt: text("exported_at"),
   createdAt: text("created_at")
     .notNull()
@@ -28,7 +29,19 @@ export const searchQueries = sqliteTable("search_queries", {
   searchQuery: text("search_query").notNull(),
   status: text("status").notNull().default("pending"),
   adsFound: integer("ads_found").notNull().default(0),
+  geoHeader: text("geo_header"),
   completedAt: text("completed_at"),
+});
+
+export const oauthSessions = sqliteTable("oauth_sessions", {
+  id: text("id").primaryKey(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  expiresAt: text("expires_at").notNull(),
+  email: text("email"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
 });
 
 export const searchResults = sqliteTable("search_results", {

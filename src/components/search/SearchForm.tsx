@@ -16,6 +16,7 @@ export default function SearchForm() {
   const [keyword, setKeyword] = useState("");
   const [locations, setLocations] = useState<SelectedLocation[]>([]);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
+  const [maxPages, setMaxPages] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export default function SearchForm() {
           keyword: keyword.trim(),
           locations,
           spreadsheetId,
+          maxPages,
         }),
       });
 
@@ -106,6 +108,35 @@ export default function SearchForm() {
           onToggle={handleToggleLocation}
           onClear={() => setLocations([])}
         />
+      </div>
+
+      <div>
+        <label
+          className="mb-1 block text-sm font-medium"
+          style={{ color: "var(--ink-2)" }}
+        >
+          検索ページ数
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={maxPages}
+            onChange={(e) =>
+              setMaxPages(Math.min(Math.max(Number(e.target.value) || 1, 1), 5))
+            }
+            className="w-20 rounded-lg border px-3 py-2 text-sm outline-none"
+            style={{
+              borderColor: "var(--rule)",
+              background: "var(--bg-card)",
+              color: "var(--ink)",
+            }}
+          />
+          <span className="text-xs" style={{ color: "var(--ink-3)" }}>
+            ページ数を増やすと取得できる広告が増えますが、検索時間も長くなります
+          </span>
+        </div>
       </div>
 
       <SpreadsheetInput value={spreadsheetUrl} onChange={setSpreadsheetUrl} />

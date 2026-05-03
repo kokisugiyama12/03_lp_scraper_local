@@ -109,7 +109,31 @@ export default function JobDetailPage() {
       </div>
 
       {job.status === "completed" && results.length > 0 && (
-        <ExportButton jobId={job.id} spreadsheetId={job.spreadsheetId} />
+        <>
+          {job.spreadsheetId && job.exportedAt && (
+            <div
+              className="rounded-lg border p-3"
+              style={{ borderColor: "var(--accent)", background: "var(--accent-soft)" }}
+            >
+              <p className="text-sm font-medium" style={{ color: "var(--accent)" }}>
+                Spreadsheetにエクスポート済み
+              </p>
+              <a
+                href={`https://docs.google.com/spreadsheets/d/${job.spreadsheetId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm underline"
+                style={{ color: "var(--accent)" }}
+              >
+                Spreadsheetを開く
+              </a>
+              <span className="ml-2 text-xs" style={{ color: "var(--ink-4)" }}>
+                ({new Date(job.exportedAt).toLocaleString("ja-JP")})
+              </span>
+            </div>
+          )}
+          <ExportButton jobId={job.id} spreadsheetId={job.spreadsheetId} />
+        </>
       )}
     </div>
   );

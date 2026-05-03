@@ -52,7 +52,10 @@ export async function runSearchJob(jobId: string): Promise<void> {
       updateQueryStatus(query.id, "running");
 
       try {
-        const ads = await searchGoogleAds(query.searchQuery);
+        const ads = await searchGoogleAds(query.searchQuery, {
+          geoHeader: query.geoHeader ?? undefined,
+          maxPages: job?.maxPages ?? 1,
+        });
 
         updateQueryStatus(query.id, "completed", ads.length);
 

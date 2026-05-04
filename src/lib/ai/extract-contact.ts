@@ -1,8 +1,3 @@
-import { getGeminiClient } from "./client";
-import {
-  CONTACT_EXTRACTION_SYSTEM_PROMPT,
-  buildExtractionPrompt,
-} from "./prompts";
 import { isTollFree, phoneMatchesLocation } from "@/lib/config/area-codes";
 import type { ContactInfo } from "@/types/result";
 
@@ -22,6 +17,42 @@ export interface ExtractionOptions {
   locationId?: string | null;
 }
 
+interface BackendResponse {
+  data?: {
+    phoneNumber: string | null;
+    presidentName: string | null;
+    companyName: string | null;
+  };
+  error?: string;
+  usage?: { remaining: number; limit: number };
+}
+
+async function callBackendExtract(pageText: string): Promise<BackendResponse | null> {
+  const apiBase = process.env.TELEAPO_API_BASE;
+  const licenseKey = process.env.TELEAPO_LICENSE_KEY;
+  if (!apiBase || !licenseKey) return null;
+
+  try {
+    const response = await fetch(`${apiBase}/api/ai/extract`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-license-key": licenseKey,
+      },
+      body: JSON.stringify({ pageText }),
+    });
+    const json = (await response.json()) as BackendResponse;
+    if (!response.ok) {
+      console.error("Backend extract error:", response.status, json.error);
+      return null;
+    }
+    return json;
+  } catch (error) {
+    console.error("Backend extract request failed:", error);
+    return null;
+  }
+}
+
 export async function extractContactInfo(
   pageText: string,
   options?: ExtractionOptions
@@ -35,43 +66,24 @@ export async function extractContactInfo(
 
   if (!pageText.trim()) return fallback;
 
-  const client = getGeminiClient();
-  if (!client) {
+  await rateLimitDelay();
+  const backend = await callBackendExtract(pageText);
+
+  if (!backend?.data) {
     return extractWithRegex(pageText, options);
   }
 
-  try {
-    await rateLimitDelay();
+  const aiPhone = backend.data.phoneNumber || null;
+  const regexResult = extractWithRegex(pageText, options);
+  const allPhones = regexResult.allPhoneNumbers || [];
+  const bestPhone = selectBestPhone(aiPhone, allPhones, options?.locationId);
 
-    const model = client.getGenerativeModel({
-      model: "gemini-2.0-flash",
-      systemInstruction: CONTACT_EXTRACTION_SYSTEM_PROMPT,
-    });
-
-    const result = await model.generateContent(buildExtractionPrompt(pageText));
-    const text = result.response.text();
-
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return extractWithRegex(pageText, options);
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    const aiPhone = parsed.phoneNumber || null;
-
-    const regexResult = extractWithRegex(pageText, options);
-    const allPhones = regexResult.allPhoneNumbers || [];
-
-    const bestPhone = selectBestPhone(aiPhone, allPhones, options?.locationId);
-
-    return {
-      phoneNumber: bestPhone,
-      presidentName: parsed.presidentName || null,
-      companyName: parsed.companyName || null,
-      allPhoneNumbers: allPhones,
-    };
-  } catch (error) {
-    console.error("AI extraction error:", error);
-    return extractWithRegex(pageText, options);
-  }
+  return {
+    phoneNumber: bestPhone,
+    presidentName: backend.data.presidentName || null,
+    companyName: backend.data.companyName || null,
+    allPhoneNumbers: allPhones,
+  };
 }
 
 function selectBestPhone(
@@ -139,7 +151,6 @@ function extractWithRegex(text: string, options?: ExtractionOptions): ContactInf
   const allPhones = extractAllPhones(text);
   const phoneNumber = selectBestPhone(null, allPhones, options?.locationId);
 
-  // Company name
   let companyName: string | null = null;
   const companyPatterns = [
     /(?:会社名|称号|商号|社名|運営会社)[：:\s\t]*((?:株式会社|有限会社|合同会社|一般社団法人)\s*.+?)[\n\t]/,
@@ -159,7 +170,6 @@ function extractWithRegex(text: string, options?: ExtractionOptions): ContactInf
     }
   }
 
-  // President name
   let presidentName: string | null = null;
   const presidentMatch = text.match(
     /代表取締役[社長]?\s*[\s　\t]+([^\s\n（(代]{2,10})/

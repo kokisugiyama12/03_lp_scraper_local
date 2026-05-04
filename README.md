@@ -14,7 +14,7 @@
 - **リスティング広告の自動検出**: Google検索結果からスポンサー広告のURLを抽出（広告クリックは行わず、DOM読み取りのみ）
 - **位置エミュレーション検索**: 47都道府県 + 20政令指定都市の位置情報を指定して、その地域の広告を取得（X-Geoヘッダーによるジオターゲティング）
 - **複数ページ広告取得**: 検索結果の1〜5ページ目まで広告を取得可能（ドメイン重複排除付き）
-- **AI連絡先抽出**: 広告主サイトをスクレイピングし、Gemini 2.0 Flash で電話番号・代表者名・会社名を構造化抽出
+- **AI連絡先抽出**: 広告主サイトをスクレイピングし、テキストを `04_teleapo_api`（バックエンド）に送信して電話番号・代表者名・会社名を構造化抽出（AIキーはクライアントには持たない）
 - **3段階抽出**: LP → 同ドメイン内会社概要ページ → Google検索補完の順に電話番号・会社名を探索
 - **地域優先電話番号選択**: 検索地域の市外局番に一致する固定電話を優先。フリーダイヤル（0120/0800）より地域の固定電話を優先して抽出
 - **リアルタイム進捗表示**: SSE (Server-Sent Events) でジョブの進行状況をリアルタイムにUI表示
@@ -29,7 +29,7 @@
 | スタイリング | Tailwind CSS v4 (PostCSS) |
 | DB | SQLite (better-sqlite3) + Drizzle ORM |
 | スクレイピング | Playwright (CDP接続でリアルChrome使用) |
-| AI抽出 | Google Gemini 2.0 Flash (@google/generative-ai) |
+| AI抽出 | `04_teleapo_api` バックエンド（HTTPS経由） |
 | スプレッドシート | Google Sheets API (googleapis) + OAuth 2.0 |
 
 ## セットアップ
@@ -50,7 +50,8 @@ cp .env.example .env.local
 
 | 変数名 | 用途 | 必須 |
 |--------|------|------|
-| `GEMINI_API_KEY` | Gemini API (連絡先抽出) | 必須 |
+| `TELEAPO_API_BASE` | バックエンドAPIのURL（04_teleapo_api） | 必須 |
+| `TELEAPO_LICENSE_KEY` | 管理者から発行されたライセンスキー（`tlap_` で始まる） | 必須 |
 | `GOOGLE_CLIENT_ID` | Google OAuth (Sheets出力) | Sheets出力時のみ |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth (Sheets出力) | Sheets出力時のみ |
 | `NEXT_PUBLIC_BASE_URL` | OAuthコールバックURL | デフォルト: `http://localhost:3000` |
@@ -112,7 +113,7 @@ search-orchestrator (バックグラウンド実行)
     │   └── 位置エミュレーション: X-Geoヘッダーでジオターゲティング
     ├── 1〜5ページの広告URLをDOM読み取りで抽出（ドメイン重複排除）
     ├── 広告主サイトに直接アクセス → テキスト抽出
-    ├── Gemini AI → 電話番号・代表者名を構造化抽出
+    ├── 04_teleapo_api → 電話番号・代表者名を構造化抽出（バックエンド経由）
     ├── DB保存 + SSEでリアルタイム通知
     └── 次の検索へ (3-8秒のランダム遅延)
     ↓

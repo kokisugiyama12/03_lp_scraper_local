@@ -20,7 +20,7 @@ npx playwright install chromium  # Install browser for scraping
 
 1. **ユーザー入力**: 業種キーワード + 場所（エリア or 路線駅名）+ Spreadsheet URL
 2. **ジョブ作成** (`POST /api/jobs`): DBにジョブ+クエリ行を生成 → オーケストレーターをfire-and-forget
-3. **バックグラウンド実行** (`src/lib/services/search-orchestrator.ts`): 各locationで Google検索(Playwright) → 広告URL抽出 → LP訪問+テキスト取得 → Gemini 2.0 Flash で電話番号・代表者名抽出 → DB保存 + SSE通知
+3. **バックグラウンド実行** (`src/lib/services/search-orchestrator.ts`): 各locationで Google検索(Playwright) → 広告URL抽出 → LP訪問+テキスト取得 → **04_teleapo_api（バックエンド）にHTTPS送信して構造化抽出** → DB保存 + SSE通知
 4. **リアルタイム表示**: SSE (`/api/jobs/[id]/stream`) でフロントにイベント配信
 5. **エクスポート**: Google Sheets API (サービスアカウント) でSpreadsheetに出力
 
@@ -28,14 +28,14 @@ npx playwright install chromium  # Install browser for scraping
 
 - **DB**: SQLite (better-sqlite3) + Drizzle ORM。Schema at `src/lib/db/schema.ts`、DB file at `data/teleapo.db`。Lazy initialization via Proxy。
 - **Scraper**: `src/lib/scraper/` — Playwright Chromium でGoogle検索広告を検出、LPのテキスト抽出
-- **AI**: `src/lib/ai/` — Gemini 2.0 Flash で電話番号・代表者名を構造化抽出。APIキーなしの場合は正規表現フォールバック
+- **AI**: `src/lib/ai/extract-contact.ts` — `04_teleapo_api`（バックエンドAPI）にLPテキストを送信し構造化抽出を取得。APIキーは持たずライセンスキー認証のみ。失敗時は正規表現フォールバック。電話番号の地域マッチング・選択ロジック（`selectBestPhone`）はクライアント側で実行
 - **Google Sheets**: `src/lib/api/google-sheets.ts` — googleapis + サービスアカウント認証
 - **Event Bus**: `src/lib/services/event-bus.ts` — EventEmitter でSSEイベント配信
 - **Location Data**: `src/lib/config/areas.ts`, `train-lines.ts` — 東京23区・市部・近県のエリア + JR・メトロ・都営の路線駅名
 
 ### Environment Variables
 
-`GEMINI_API_KEY` が必須（AI抽出用）。`GOOGLE_SERVICE_ACCOUNT_EMAIL` + `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` はSpreadsheet出力に必要。`.env.example` 参照。
+`TELEAPO_API_BASE` + `TELEAPO_LICENSE_KEY` が必須（AI抽出を委譲するバックエンドURLとライセンス）。`GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` はSpreadsheet出力に必要。`.env.example` 参照。**Gemini APIキーは本リポジトリには持たない**（04側で管理）。
 
 ### Notes
 

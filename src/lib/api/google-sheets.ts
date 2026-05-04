@@ -24,7 +24,8 @@ const HEADER = [
   "検索キーワード",
   "検索地域",
   "検索ページ数",
-  "検索日時",
+  "検索日",
+  "検索時刻",
   "出力日",
   "出力時刻",
   "検索エリア",
@@ -83,9 +84,6 @@ function formatDateTime(date: Date): { date: string; time: string } {
   };
 }
 
-function formatSearchedAt(iso: string): string {
-  return new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
-}
 
 export async function exportToSheet(
   spreadsheetId: string,
@@ -101,13 +99,14 @@ export async function exportToSheet(
   const sheetName = sheetMeta.data.properties?.title || spreadsheetId;
 
   const { date: exportDate, time: exportTime } = formatDateTime(new Date());
-  const searchedAtFormatted = formatSearchedAt(meta.searchedAt);
+  const { date: searchedDate, time: searchedTime } = formatDateTime(new Date(meta.searchedAt));
 
   const dataRows: string[][] = results.map((r) => [
     meta.keyword,
     meta.locations,
     String(meta.maxPages),
-    searchedAtFormatted,
+    searchedDate,
+    searchedTime,
     exportDate,
     exportTime,
     r.locationName,

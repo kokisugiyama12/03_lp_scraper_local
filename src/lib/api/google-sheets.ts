@@ -20,6 +20,24 @@ interface ExportMeta {
   maxPages: number;
 }
 
+const HEADER = [
+  "検索キーワード",
+  "検索地域",
+  "検索ページ数",
+  "検索日時",
+  "出力日",
+  "出力時刻",
+  "検索エリア",
+  "会社名",
+  "電話番号",
+  "代表者名",
+  "広告見出し",
+  "広告説明文",
+  "広告URL",
+  "遷移先URL",
+  "取得日時",
+];
+
 async function getValidAccessToken(sessionId: string): Promise<string> {
   const session = getOAuthSession(sessionId);
   if (!session) {
@@ -65,13 +83,16 @@ function formatDateTime(date: Date): { date: string; time: string } {
   };
 }
 
+function formatSearchedAt(iso: string): string {
+  return new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
+}
+
 export async function exportToSheet(
   spreadsheetId: string,
   results: SheetRow[],
   sessionId: string,
-  meta?: ExportMeta,
-  options?: { append?: boolean }
-): Promise<{ rowsWritten: number; sheetName: string }> {
+  meta: ExportMeta,
+): Promise<{ rowsWritten: number; sheetName: string; appended: boolean }> {
   const accessToken = await getValidAccessToken(sessionId);
   const sheets = getSheetsClient(accessToken);
 
@@ -79,111 +100,47 @@ export async function exportToSheet(
   const firstSheet = sheetMeta.data.sheets?.[0]?.properties?.title ?? "Sheet1";
   const sheetName = sheetMeta.data.properties?.title || spreadsheetId;
 
-  const now = new Date();
-  const { date: exportDate, time: exportTime } = formatDateTime(now);
+  const { date: exportDate, time: exportTime } = formatDateTime(new Date());
+  const searchedAtFormatted = formatSearchedAt(meta.searchedAt);
 
-  const shouldAppend = options?.append === true;
+  const dataRows: string[][] = results.map((r) => [
+    meta.keyword,
+    meta.locations,
+    String(meta.maxPages),
+    searchedAtFormatted,
+    exportDate,
+    exportTime,
+    r.locationName,
+    r.companyName || "",
+    r.phoneNumber || "",
+    r.presidentName || "",
+    r.adHeadline || "",
+    r.adDescription || "",
+    r.adUrl,
+    r.landingUrl || "",
+    r.createdAt,
+  ]);
 
-  if (shouldAppend) {
-    const existing = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${firstSheet}!A:A`,
-    });
-    const lastRow = existing.data.values?.length || 0;
+  const existing = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${firstSheet}!A:A`,
+  });
+  const lastRow = existing.data.values?.length || 0;
+  const isEmpty = lastRow === 0;
 
-    const dataRows: string[][] = [];
-    for (const r of results) {
-      dataRows.push([
-        exportDate,
-        exportTime,
-        r.locationName,
-        r.companyName || "",
-        r.phoneNumber || "",
-        r.presidentName || "",
-        r.adHeadline || "",
-        r.adDescription || "",
-        r.adUrl,
-        r.landingUrl || "",
-        r.createdAt,
-      ]);
-    }
+  const valuesToWrite = isEmpty ? [HEADER, ...dataRows] : dataRows;
+  const startRow = isEmpty ? 1 : lastRow + 1;
 
-    if (lastRow === 0) {
-      const headerWithMeta: string[][] = [];
-      if (meta) {
-        headerWithMeta.push(["検索条件"]);
-        headerWithMeta.push(["検索キーワード", meta.keyword]);
-        headerWithMeta.push(["検索地域", meta.locations]);
-        headerWithMeta.push(["検索ページ数", String(meta.maxPages)]);
-        headerWithMeta.push(["検索日時", new Date(meta.searchedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })]);
-        headerWithMeta.push([]);
-      }
-      headerWithMeta.push([
-        "日付", "時刻", "検索エリア", "会社名", "電話番号",
-        "代表者名", "広告見出し", "広告説明文", "広告URL", "遷移先URL", "取得日時",
-      ]);
-      headerWithMeta.push(...dataRows);
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${firstSheet}!A${startRow}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: valuesToWrite },
+  });
 
-      await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `${firstSheet}!A1`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: headerWithMeta },
-      });
-    } else {
-      const startRow = lastRow + 1;
-      await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `${firstSheet}!A${startRow}`,
-        valueInputOption: "USER_ENTERED",
-        requestBody: { values: dataRows },
-      });
-    }
-  } else {
-    const values: string[][] = [];
-
-    if (meta) {
-      values.push(["検索条件"]);
-      values.push(["検索キーワード", meta.keyword]);
-      values.push(["検索地域", meta.locations]);
-      values.push(["検索ページ数", String(meta.maxPages)]);
-      values.push(["検索日時", new Date(meta.searchedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })]);
-      values.push([]);
-    }
-
-    values.push([
-      "日付", "時刻", "検索エリア", "会社名", "電話番号",
-      "代表者名", "広告見出し", "広告説明文", "広告URL", "遷移先URL", "取得日時",
-    ]);
-
-    for (const r of results) {
-      values.push([
-        exportDate,
-        exportTime,
-        r.locationName,
-        r.companyName || "",
-        r.phoneNumber || "",
-        r.presidentName || "",
-        r.adHeadline || "",
-        r.adDescription || "",
-        r.adUrl,
-        r.landingUrl || "",
-        r.createdAt,
-      ]);
-    }
-
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId,
-      range: firstSheet,
-    });
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${firstSheet}!A1`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: { values },
-    });
-  }
-
-  return { rowsWritten: results.length, sheetName };
+  return {
+    rowsWritten: results.length,
+    sheetName,
+    appended: !isEmpty,
+  };
 }

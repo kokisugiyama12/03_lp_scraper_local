@@ -29,7 +29,6 @@ export async function POST(
 
   const body = await request.json().catch(() => ({}));
   const spreadsheetId = body.spreadsheetId || job.spreadsheetId;
-  const append = body.append === true;
 
   if (!spreadsheetId) {
     return NextResponse.json(
@@ -44,12 +43,17 @@ export async function POST(
     const locations = JSON.parse(job.locationsJson || "[]");
     const locationNames = locations.map((l: { name: string }) => l.name).join("、");
 
-    const { rowsWritten, sheetName } = await exportToSheet(spreadsheetId, results, sessionId, {
-      keyword: job.keyword,
-      locations: locationNames,
-      searchedAt: job.createdAt,
-      maxPages: job.maxPages,
-    }, { append });
+    const { rowsWritten, sheetName, appended } = await exportToSheet(
+      spreadsheetId,
+      results,
+      sessionId,
+      {
+        keyword: job.keyword,
+        locations: locationNames,
+        searchedAt: job.createdAt,
+        maxPages: job.maxPages,
+      },
+    );
 
     updateJobStatus(id, job.status, {
       exportedAt: new Date().toISOString(),
@@ -60,6 +64,7 @@ export async function POST(
 
     return NextResponse.json({
       rowsWritten,
+      appended,
       spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
     });
   } catch (error) {

@@ -54,11 +54,9 @@ export default function ExportButton({
 
   const handleExport = async () => {
     let id: string | null = null;
-    let append = false;
 
     if (selectedHistoryId) {
       id = selectedHistoryId;
-      append = true;
     } else if (initialId) {
       id = initialId;
     } else {
@@ -80,7 +78,7 @@ export default function ExportButton({
       const res = await fetch(`/api/jobs/${jobId}/export`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spreadsheetId: id, append }),
+        body: JSON.stringify({ spreadsheetId: id }),
       });
 
       const data = await res.json();
@@ -101,9 +99,9 @@ export default function ExportButton({
       setExportedUrl(data.spreadsheetUrl);
       setResult({
         success: true,
-        message: append
+        message: data.appended
           ? `${data.rowsWritten}件を既存のSpreadsheetに追記しました`
-          : `${data.rowsWritten}件をSpreadsheetに出力しました`,
+          : `${data.rowsWritten}件をSpreadsheetに新規出力しました`,
       });
 
       fetch("/api/export-history")
@@ -209,9 +207,7 @@ export default function ExportButton({
           >
             {isExporting
               ? "エクスポート中..."
-              : selectedHistoryId
-                ? "Spreadsheetに追記"
-                : "Spreadsheetに出力"}
+              : "Spreadsheetに出力（既存があれば追記）"}
           </button>
         </>
       )}

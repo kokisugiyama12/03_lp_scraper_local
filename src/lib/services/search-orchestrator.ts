@@ -77,8 +77,8 @@ export async function runSearchJob(jobId: string): Promise<void> {
             let contact = await extractContactInfo(lpText, { locationId });
             console.log(`[Step1] ${ad.url} → company=${contact.companyName}, phone=${contact.phoneNumber}, allPhones=${contact.allPhoneNumbers?.join(",")}`);
 
-            // Step 2: 会社名 or 電話番号が取れなければ同ドメイン内を探索
-            if (!contact.companyName || !contact.phoneNumber) {
+            // Step 2: 会社名 or 電話番号 or 代表者名が取れなければ同ドメイン内を探索
+            if (!contact.companyName || !contact.phoneNumber || !contact.presidentName) {
               console.log(`[Step2] Deep scrape for ${ad.url}`);
               try {
                 const companyPageText = await scrapeCompanyPages(finalUrl || ad.url);
@@ -99,16 +99,19 @@ export async function runSearchJob(jobId: string): Promise<void> {
               }
             }
 
-            // Step 3: 会社名はあるが電話番号がない → Google検索で補完
-            if (contact.companyName && !contact.phoneNumber) {
+            // Step 3: 会社名はあるが電話番号 or 代表者名がない → Google検索で補完
+            if (contact.companyName && (!contact.phoneNumber || !contact.presidentName)) {
               console.log(`[Step3] Google search for "${contact.companyName}"`);
               try {
                 const { text: searchText } = await searchCompanyPhone(contact.companyName);
                 if (searchText) {
                   const searchContact = await extractContactInfo(searchText, { locationId });
-                  console.log(`[Step3] Search result → phone=${searchContact.phoneNumber}`);
-                  if (searchContact.phoneNumber) {
+                  console.log(`[Step3] Search result → phone=${searchContact.phoneNumber}, president=${searchContact.presidentName}`);
+                  if (!contact.phoneNumber && searchContact.phoneNumber) {
                     contact.phoneNumber = searchContact.phoneNumber;
+                  }
+                  if (!contact.presidentName && searchContact.presidentName) {
+                    contact.presidentName = searchContact.presidentName;
                   }
                 }
               } catch (err) {

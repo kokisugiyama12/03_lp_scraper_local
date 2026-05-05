@@ -1,34 +1,55 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
 :root {
-  --bg: #f5f5f0;
+  /* Pro Console palette */
+  --bg: #f4f5f8;
   --bg-card: #ffffff;
-  --bg-sunken: #eaeae2;
-  --ink: #1a1a1a;
-  --ink-2: #333333;
-  --ink-3: #666666;
-  --ink-4: #999999;
-  --rule: rgba(0, 0, 0, 0.12);
-  --rule-soft: rgba(0, 0, 0, 0.06);
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: #dbeafe;
-  --success: #16a34a;
-  --success-soft: #dcfce7;
-  --error: #dc2626;
-  --error-soft: #fee2e2;
-  --warning: #d97706;
-  --warning-soft: #fef3c7;
+  --bg-sunken: #fafbfc;
+  --ink: #0d1b2e;
+  --ink-2: #5a6478;
+  --ink-3: #8a92a0;
+  --ink-4: #aab1bd;
+  --rule: #dde1e8;
+  --rule-soft: #ecedf2;
+  --rule-strong: #c2c8d2;
+  --row-hover: #f7f8fb;
 
-  --font-body: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
-  --font-mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+  --accent: #1e3a5f;
+  --accent-hover: #162d4a;
+  --accent-soft: rgba(30, 58, 95, 0.06);
+  --gold: #c19a3d;
+
+  --success: #0f7c4d;
+  --success-soft: #e6f4ec;
+  --success-soft-strong: #d3ecdd;
+  --error: #a02a2a;
+  --error-soft: #fde8e8;
+  --warning: #b8651e;
+  --warning-soft: #fcf2e4;
+  --running: #1e6fd9;
+  --running-soft: #e8f0fb;
+
+  /* Sidebar */
+  --sidebar-bg: #0d1b2e;
+  --sidebar-text: #a8b3c7;
+  --sidebar-active: rgba(255, 255, 255, 0.08);
+  --sidebar-active-bar: #5b9dff;
+  --sidebar-border: #1a2942;
+
+  --font-body: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 }
 
 @theme inline {
   --color-background: var(--bg);
   --color-foreground: var(--ink);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
 }
 
 body {
@@ -37,45 +58,54 @@ body {
   font-family: var(--font-body);
   font-feature-settings: "palt" 1;
   -webkit-font-smoothing: antialiased;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.005em;
 }
 
-.num {
+*, *::before, *::after { box-sizing: border-box; }
+
+.num, .mono {
   font-family: var(--font-mono);
   font-feature-settings: "tnum" 1;
   letter-spacing: 0;
 }
 
 .label-caps {
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-3);
-  font-weight: 600;
+  font-weight: 700;
   font-family: var(--font-mono);
 }
 
 .status-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 5px;
+  font-size: 9.5px;
+  font-weight: 700;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 2px;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
 }
-.status-chip.running { color: var(--accent); background: var(--accent-soft); }
+.status-chip.running { color: var(--running); background: var(--running-soft); }
 .status-chip.completed { color: var(--success); background: var(--success-soft); }
 .status-chip.failed { color: var(--error); background: var(--error-soft); }
 .status-chip.pending { color: var(--warning); background: var(--warning-soft); }
-.status-chip.cancelled { color: var(--ink-3); background: var(--bg-sunken); }
+.status-chip.cancelled { color: var(--ink-3); background: var(--rule-soft); }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.35; }
 }
 
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@keyframes stripe {
+  0% { background-position: 0 0; }
+  100% { background-position: 20px 0; }
 }

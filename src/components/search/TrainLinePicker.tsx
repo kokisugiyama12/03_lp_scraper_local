@@ -39,7 +39,7 @@ export default function TrainLinePicker({
               return (
                 <div
                   key={line.id}
-                  className="overflow-hidden rounded-lg border"
+                  className="overflow-hidden rounded-[3px] border"
                   style={{
                     borderColor: selectedCount > 0
                       ? "var(--accent)"
@@ -58,7 +58,7 @@ export default function TrainLinePicker({
                     <span className="flex items-center gap-2">
                       {selectedCount > 0 && (
                         <span
-                          className="rounded-full px-2 py-0.5 text-xs font-bold"
+                          className="rounded-[2px] px-2 py-0.5 text-xs font-bold"
                           style={{
                             background: "var(--accent-soft)",
                             color: "var(--accent)",

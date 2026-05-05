@@ -121,7 +121,7 @@ export default function ExportButton({
 
   return (
     <div
-      className="rounded-lg border p-4"
+      className="rounded-[3px] border p-4"
       style={{ borderColor: "var(--rule)", background: "var(--bg-card)" }}
     >
       <h3
@@ -138,7 +138,7 @@ export default function ExportButton({
           </p>
           <button
             onClick={handleAuth}
-            className="rounded-lg border px-4 py-2 text-sm font-bold transition-colors"
+            className="rounded-[3px] border px-4 py-2 text-sm font-bold transition-colors"
             style={{
               borderColor: "var(--rule)",
               background: "var(--bg-card)",
@@ -166,7 +166,7 @@ export default function ExportButton({
                   setSelectedHistoryId(e.target.value);
                   if (e.target.value) setSpreadsheetUrl("");
                 }}
-                className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                className="w-full rounded-[3px] border px-3 py-2 text-sm outline-none"
                 style={{
                   borderColor: "var(--rule)",
                   background: "var(--bg)",
@@ -202,8 +202,8 @@ export default function ExportButton({
           <button
             onClick={handleExport}
             disabled={disabled || isExporting}
-            className="rounded-lg px-4 py-2 text-sm font-bold text-white transition-colors disabled:opacity-50"
-            style={{ background: "var(--success)" }}
+            className="rounded-[3px] px-4 py-2 text-sm font-bold text-white transition-colors disabled:opacity-50"
+            style={{ background: "var(--accent)" }}
           >
             {isExporting
               ? "エクスポート中..."

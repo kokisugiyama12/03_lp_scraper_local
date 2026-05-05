@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Sidebar from "@/components/layout/Sidebar";
+import TopBar from "@/components/layout/TopBar";
 import JobProgress from "@/components/jobs/JobProgress";
 import JobResults from "@/components/jobs/JobResults";
 import ExportButton from "@/components/export/ExportButton";
@@ -18,6 +20,14 @@ interface ResultRow {
   adHeadline?: string | null;
   extractionStatus?: string;
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "待機中",
+  running: "実行中",
+  completed: "完了",
+  failed: "エラー",
+  cancelled: "キャンセル",
+};
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,89 +62,146 @@ export default function JobDetailPage() {
     setJob(updated);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div
-          className="h-8 w-8 rounded-full border-2 border-t-transparent"
-          style={{
-            borderColor: "var(--rule)",
-            borderTopColor: "transparent",
-            animation: "spin 0.8s linear infinite",
-          }}
-        />
-      </div>
-    );
-  }
-
-  if (!job) {
-    return (
-      <div className="py-20 text-center">
-        <p style={{ color: "var(--ink-3)" }}>ジョブが見つかりません</p>
-        <Link
-          href="/"
-          className="mt-2 inline-block text-sm underline"
-          style={{ color: "var(--accent)" }}
-        >
-          トップに戻る
-        </Link>
-      </div>
-    );
-  }
+  const isRunning =
+    job?.status === "running" || job?.status === "pending";
 
   return (
-    <div className="space-y-4">
-      <Link
-        href="/"
-        className="inline-block text-sm underline"
-        style={{ color: "var(--accent)" }}
-      >
-        ← トップに戻る
-      </Link>
+    <div className="flex min-h-screen">
+      <Sidebar hasRunning={isRunning} />
+      <main className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          crumb={[
+            "Workspace",
+            isRunning ? "実行中ジョブ" : "ジョブ履歴",
+            job
+              ? `#${job.id.slice(0, 6).toUpperCase()} ${job.keyword}`
+              : "...",
+          ]}
+          right={
+            job ? (
+              <>
+                {isRunning ? (
+                  <span
+                    className="flex items-center gap-1.5 font-bold"
+                    style={{ color: "var(--running)" }}
+                  >
+                    <span
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        background: "var(--running)",
+                        animation: "pulse 1s infinite",
+                        display: "inline-block",
+                      }}
+                    />
+                    RUNNING
+                  </span>
+                ) : (
+                  <span style={{ color: "var(--ink-3)" }}>
+                    {STATUS_LABELS[job.status] || job.status}
+                  </span>
+                )}
+                <span
+                  style={{
+                    width: 1,
+                    height: 12,
+                    background: "var(--rule)",
+                  }}
+                />
+                <Link
+                  href="/"
+                  className="hover:underline"
+                  style={{ color: "var(--ink-2)" }}
+                >
+                  ← トップに戻る
+                </Link>
+              </>
+            ) : undefined
+          }
+        />
 
-      <JobProgress
-        job={job}
-        onUpdate={handleJobUpdate}
-        onResultFound={handleResultFound}
-      />
-
-      <div>
-        <h3
-          className="mb-2 text-sm font-bold"
-          style={{ color: "var(--ink-2)" }}
-        >
-          取得結果（{results.length}件）
-        </h3>
-        <JobResults results={results} />
-      </div>
-
-      {job.status === "completed" && results.length > 0 && (
-        <>
-          {job.spreadsheetId && job.exportedAt && (
+        {loading && (
+          <div className="flex items-center justify-center py-20">
             <div
-              className="rounded-lg border p-3"
-              style={{ borderColor: "var(--accent)", background: "var(--accent-soft)" }}
+              style={{
+                height: 32,
+                width: 32,
+                border: "2px solid var(--rule)",
+                borderTopColor: "transparent",
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
+          </div>
+        )}
+
+        {!loading && !job && (
+          <div className="py-20 text-center">
+            <p style={{ color: "var(--ink-2)" }}>ジョブが見つかりません</p>
+            <Link
+              href="/"
+              className="mt-2 inline-block text-sm underline"
+              style={{ color: "var(--accent)" }}
             >
-              <p className="text-sm font-medium" style={{ color: "var(--accent)" }}>
-                Spreadsheetにエクスポート済み
-              </p>
-              <a
-                href={`https://docs.google.com/spreadsheets/d/${job.spreadsheetId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm underline"
-                style={{ color: "var(--accent)" }}
-              >
-                Spreadsheetを開く
-              </a>
-              <span className="ml-2 text-xs" style={{ color: "var(--ink-4)" }}>
-                ({new Date(job.exportedAt).toLocaleString("ja-JP")})
-              </span>
-            </div>
-          )}
-          <ExportButton jobId={job.id} spreadsheetId={job.spreadsheetId} />
-        </>
-      )}
+              トップに戻る
+            </Link>
+          </div>
+        )}
+
+        {!loading && job && (
+          <>
+            <JobProgress
+              job={job}
+              onUpdate={handleJobUpdate}
+              onResultFound={handleResultFound}
+            />
+
+            <JobResults results={results} />
+
+            {job.status === "completed" && results.length > 0 && (
+              <div className="px-6 pb-6">
+                <ExportButton
+                  jobId={job.id}
+                  spreadsheetId={job.spreadsheetId}
+                />
+                {job.spreadsheetId && job.exportedAt && (
+                  <div
+                    className="mt-3 rounded-[3px] p-3"
+                    style={{
+                      borderColor: "var(--accent)",
+                      background: "var(--accent-soft)",
+                      border: "1px solid var(--accent)",
+                    }}
+                  >
+                    <p
+                      className="text-sm font-medium"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      Spreadsheetにエクスポート済み
+                    </p>
+                    <a
+                      href={`https://docs.google.com/spreadsheets/d/${job.spreadsheetId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm underline"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      Spreadsheetを開く
+                    </a>
+                    <span
+                      className="ml-2 text-xs"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      ({new Date(job.exportedAt).toLocaleString("ja-JP")})
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </main>
     </div>
   );
 }

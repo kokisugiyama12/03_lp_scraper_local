@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import Header from "@/components/layout/Header";
 
 export const metadata: Metadata = {
   title: "テレアポリスト生成ツール",
@@ -23,8 +22,7 @@ export default function RootLayout({
         className="min-h-screen"
         style={{ background: "var(--bg)", color: "var(--ink)" }}
       >
-        <Header />
-        <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+        {children}
       </body>
     </html>
   );

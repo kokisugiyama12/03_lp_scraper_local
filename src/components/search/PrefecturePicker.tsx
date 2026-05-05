@@ -61,7 +61,7 @@ export default function PrefecturePicker({
                   <button
                     key={pref.id}
                     type="button"
-                    className="rounded-md border px-3 py-1.5 text-sm transition-colors"
+                    className="rounded-[3px] border px-3 py-1.5 text-sm transition-colors"
                     style={{
                       borderColor: isSelected
                         ? "var(--accent)"
@@ -102,7 +102,7 @@ export default function PrefecturePicker({
                     <button
                       key={city.id}
                       type="button"
-                      className="rounded-md border px-2.5 py-1 text-xs transition-colors"
+                      className="rounded-[3px] border px-2.5 py-1 text-xs transition-colors"
                       style={{
                         borderColor: isSelected
                           ? "var(--accent)"

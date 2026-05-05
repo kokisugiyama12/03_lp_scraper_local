@@ -50,7 +50,7 @@ export default function AreaPicker({ selected, onToggle }: AreaPickerProps) {
                 <button
                   key={area.id}
                   type="button"
-                  className="rounded-md border px-3 py-1.5 text-sm transition-colors"
+                  className="rounded-[3px] border px-3 py-1.5 text-sm transition-colors"
                   style={{
                     borderColor: isSelected
                       ? "var(--accent)"

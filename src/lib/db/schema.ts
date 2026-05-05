@@ -54,6 +54,14 @@ export const exportHistory = sqliteTable("export_history", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
+export const appSettings = sqliteTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: text("updated_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
 export const searchResults = sqliteTable("search_results", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   jobId: text("job_id")

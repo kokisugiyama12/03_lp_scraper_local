@@ -17,6 +17,31 @@ export default function ChromeSettingsClient() {
   const [status, setStatus] = useState<ChromeStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [launching, setLaunching] = useState(false);
+  const [launchMsg, setLaunchMsg] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+
+  const launchChrome = async () => {
+    setLaunching(true);
+    setLaunchMsg(null);
+    try {
+      const res = await fetch("/api/system/chrome/launch", {
+        method: "POST",
+      });
+      const data = (await res.json()) as { ok: boolean; message: string };
+      setLaunchMsg(data);
+      if (data.ok) {
+        // refresh status
+        await refresh();
+      }
+    } catch {
+      setLaunchMsg({ ok: false, message: "起動に失敗しました" });
+    } finally {
+      setLaunching(false);
+    }
+  };
 
   const refresh = async () => {
     try {
@@ -167,7 +192,7 @@ export default function ChromeSettingsClient() {
                       <KV label="Endpoint" value="http://localhost:9222" />
                     </div>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       <p
                         style={{
                           fontSize: 12,
@@ -175,8 +200,39 @@ export default function ChromeSettingsClient() {
                           margin: 0,
                         }}
                       >
-                        Chromeに接続できません。下記のコマンドで起動してください。
+                        Chromeに接続できません。下のボタンで起動できます。
                       </p>
+                      <div className="flex items-center gap-3 pt-1">
+                        <button
+                          onClick={launchChrome}
+                          disabled={launching}
+                          className="cursor-pointer disabled:opacity-50"
+                          style={{
+                            padding: "7px 18px",
+                            border: "none",
+                            background: "var(--accent)",
+                            fontSize: 12.5,
+                            fontWeight: 700,
+                            color: "#fff",
+                            borderRadius: 3,
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {launching ? "起動中..." : "Chrome起動 ▶"}
+                        </button>
+                        {launchMsg && (
+                          <span
+                            style={{
+                              fontSize: 11.5,
+                              color: launchMsg.ok
+                                ? "var(--success)"
+                                : "var(--error)",
+                            }}
+                          >
+                            {launchMsg.message}
+                          </span>
+                        )}
+                      </div>
                       {status.error && (
                         <p
                           className="mono"
@@ -205,7 +261,7 @@ export default function ChromeSettingsClient() {
             border: "1px solid var(--rule)",
           }}
         >
-          <PanelHeader title="Chrome起動コマンド" sub="LAUNCH" />
+          <PanelHeader title="Chrome起動コマンド (手動)" sub="LAUNCH" />
           <div className="px-5 py-4">
             <p
               style={{
@@ -214,7 +270,7 @@ export default function ChromeSettingsClient() {
                 margin: "0 0 10px",
               }}
             >
-              ターミナルで以下のコマンドを実行するとデバッグ用のChromeが起動します。通常のChromeとは別プロファイル
+              「Chrome起動」ボタンが動かない場合、ターミナルで以下のコマンドを実行してください。通常のChromeとは別プロファイル
               ({" "}
               <code
                 className="mono"

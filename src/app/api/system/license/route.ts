@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getTeleapoConfig } from "@/lib/config/teleapo-config";
+import { setSetting, deleteSetting } from "@/lib/db/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -9,24 +11,58 @@ function maskLicense(key: string): string {
 }
 
 export async function GET() {
-  const apiBase = process.env.TELEAPO_API_BASE || null;
-  const licenseKey = process.env.TELEAPO_LICENSE_KEY || null;
+  const config = getTeleapoConfig();
   return NextResponse.json({
-    apiBase,
-    licenseConfigured: !!licenseKey,
-    licenseMasked: licenseKey ? maskLicense(licenseKey) : null,
+    apiBase: config.apiBase,
+    licenseConfigured: !!config.licenseKey,
+    licenseMasked: config.licenseKey ? maskLicense(config.licenseKey) : null,
+    apiBaseSource: config.source.apiBase,
+    licenseSource: config.source.licenseKey,
+  });
+}
+
+export async function PUT(request: Request) {
+  let body: { apiBase?: string | null; licenseKey?: string | null };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+  }
+
+  if (typeof body.apiBase !== "undefined") {
+    const v = (body.apiBase || "").trim();
+    if (v) {
+      setSetting("teleapo_api_base", v);
+    } else {
+      deleteSetting("teleapo_api_base");
+    }
+  }
+  if (typeof body.licenseKey !== "undefined") {
+    const v = (body.licenseKey || "").trim();
+    if (v) {
+      setSetting("teleapo_license_key", v);
+    } else {
+      deleteSetting("teleapo_license_key");
+    }
+  }
+
+  const config = getTeleapoConfig();
+  return NextResponse.json({
+    success: true,
+    apiBase: config.apiBase,
+    licenseConfigured: !!config.licenseKey,
+    licenseMasked: config.licenseKey ? maskLicense(config.licenseKey) : null,
   });
 }
 
 export async function POST() {
-  const apiBase = process.env.TELEAPO_API_BASE;
-  const licenseKey = process.env.TELEAPO_LICENSE_KEY;
+  const { apiBase, licenseKey } = getTeleapoConfig();
 
   if (!apiBase || !licenseKey) {
     return NextResponse.json({
       ok: false,
       reason: "missing_config",
-      message: "TELEAPO_API_BASE または TELEAPO_LICENSE_KEY が未設定",
+      message: "Backend URL またはライセンスキーが未設定",
     });
   }
 
@@ -90,8 +126,7 @@ export async function POST() {
     });
   } catch (error) {
     const latencyMs = Date.now() - startedAt;
-    const isAbort =
-      error instanceof Error && error.name === "TimeoutError";
+    const isAbort = error instanceof Error && error.name === "TimeoutError";
     return NextResponse.json({
       ok: false,
       reason: isAbort ? "timeout" : "connection_error",

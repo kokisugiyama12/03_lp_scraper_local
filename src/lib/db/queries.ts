@@ -1,6 +1,46 @@
 import { getDb } from "./index";
-import { searchJobs, searchQueries, searchResults, oauthSessions, exportHistory } from "./schema";
+import {
+  searchJobs,
+  searchQueries,
+  searchResults,
+  oauthSessions,
+  exportHistory,
+  appSettings,
+} from "./schema";
 import { eq, desc } from "drizzle-orm";
+
+export function getSetting(key: string): string | null {
+  const row = getDb()
+    .select()
+    .from(appSettings)
+    .where(eq(appSettings.key, key))
+    .limit(1)
+    .all()[0];
+  return row?.value ?? null;
+}
+
+export function setSetting(key: string, value: string): void {
+  const now = new Date().toISOString();
+  const existing = getDb()
+    .select()
+    .from(appSettings)
+    .where(eq(appSettings.key, key))
+    .limit(1)
+    .all()[0];
+  if (existing) {
+    getDb()
+      .update(appSettings)
+      .set({ value, updatedAt: now })
+      .where(eq(appSettings.key, key))
+      .run();
+  } else {
+    getDb().insert(appSettings).values({ key, value, updatedAt: now }).run();
+  }
+}
+
+export function deleteSetting(key: string): void {
+  getDb().delete(appSettings).where(eq(appSettings.key, key)).run();
+}
 
 export function createJob(job: {
   id: string;

@@ -1,4 +1,5 @@
 import { isTollFree, phoneMatchesLocation } from "@/lib/config/area-codes";
+import { getTeleapoConfig } from "@/lib/config/teleapo-config";
 import type { ContactInfo } from "@/types/result";
 
 let lastApiCall = 0;
@@ -28,8 +29,7 @@ interface BackendResponse {
 }
 
 async function callBackendExtract(pageText: string): Promise<BackendResponse | null> {
-  const apiBase = process.env.TELEAPO_API_BASE;
-  const licenseKey = process.env.TELEAPO_LICENSE_KEY;
+  const { apiBase, licenseKey } = getTeleapoConfig();
   if (!apiBase || !licenseKey) return null;
 
   try {

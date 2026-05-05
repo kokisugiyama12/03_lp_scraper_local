@@ -6,6 +6,8 @@ interface LicenseInfo {
   apiBase: string | null;
   licenseConfigured: boolean;
   licenseMasked: string | null;
+  apiBaseSource?: "db" | "env" | "none";
+  licenseSource?: "db" | "env" | "none";
 }
 
 interface PingResult {
@@ -17,11 +19,30 @@ interface PingResult {
   usage?: { remaining?: number; limit?: number } | null;
 }
 
+const DEFAULT_API_BASE =
+  "https://04teleapoapi-kokisugiyama12-6776s-projects.vercel.app";
+
 export default function LicenseSettingsClient() {
   const [info, setInfo] = useState<LicenseInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [pinging, setPinging] = useState(false);
   const [pingResult, setPingResult] = useState<PingResult | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  // Form state
+  const [apiBaseInput, setApiBaseInput] = useState("");
+  const [licenseInput, setLicenseInput] = useState("");
+
+  const loadInfo = async () => {
+    const res = await fetch("/api/system/license", { cache: "no-store" });
+    const data = (await res.json()) as LicenseInfo;
+    setInfo(data);
+    setApiBaseInput(data.apiBase || "");
+    // ライセンスキーはマスク済みなので入力欄は空にしておく (上書き入力するときだけ送信)
+    setLicenseInput("");
+    setLoading(false);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +53,7 @@ export default function LicenseSettingsClient() {
         const data = (await res.json()) as LicenseInfo;
         if (cancelled) return;
         setInfo(data);
+        setApiBaseInput(data.apiBase || "");
         setLoading(false);
       } catch {
         if (!cancelled) {
@@ -48,6 +70,38 @@ export default function LicenseSettingsClient() {
       cancelled = true;
     };
   }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const body: { apiBase?: string; licenseKey?: string } = {};
+      if (apiBaseInput.trim() !== (info?.apiBase || "")) {
+        body.apiBase = apiBaseInput.trim();
+      }
+      if (licenseInput.trim()) {
+        body.licenseKey = licenseInput.trim();
+      }
+      if (Object.keys(body).length === 0) {
+        setSaveMsg("変更がありません");
+        setSaving(false);
+        return;
+      }
+      const res = await fetch("/api/system/license", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("保存に失敗しました");
+      await loadInfo();
+      setSaveMsg("✓ 保存しました");
+      setTimeout(() => setSaveMsg(null), 2500);
+    } catch (e) {
+      setSaveMsg(e instanceof Error ? e.message : "エラーが発生しました");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const runPing = async () => {
     setPinging(true);
@@ -66,6 +120,12 @@ export default function LicenseSettingsClient() {
       setPinging(false);
     }
   };
+
+  const handleUseDefault = () => {
+    setApiBaseInput(DEFAULT_API_BASE);
+  };
+
+  const isConfigured = !!info?.apiBase && !!info?.licenseConfigured;
 
   return (
     <>
@@ -98,7 +158,7 @@ export default function LicenseSettingsClient() {
       </div>
 
       <div className="grid gap-4 px-6 py-4">
-        {/* Connection info */}
+        {/* Settings form */}
         <div
           className="rounded-[4px]"
           style={{
@@ -107,8 +167,8 @@ export default function LicenseSettingsClient() {
             maxWidth: 880,
           }}
         >
-          <PanelHeader title="接続情報" sub="PARAMETERS" />
-          <div className="px-5 py-5 space-y-2">
+          <PanelHeader title="接続情報" sub="SETTINGS" />
+          <div className="px-5 pb-5 pt-4">
             {loading && (
               <div style={{ color: "var(--ink-3)", fontSize: 12 }}>
                 読み込み中...
@@ -116,20 +176,138 @@ export default function LicenseSettingsClient() {
             )}
             {info && (
               <>
-                <KV
-                  label="Backend URL"
-                  value={info.apiBase || "(未設定)"}
-                  warning={!info.apiBase}
-                />
-                <KV
-                  label="License Key"
-                  value={
-                    info.licenseConfigured
-                      ? info.licenseMasked || ""
-                      : "(未設定)"
-                  }
-                  warning={!info.licenseConfigured}
-                />
+                <div
+                  className="grid items-start"
+                  style={{
+                    gridTemplateColumns: "150px 1fr",
+                    columnGap: 18,
+                    rowGap: 14,
+                  }}
+                >
+                  <FormLabel>Backend URL</FormLabel>
+                  <div>
+                    <div className="flex gap-2">
+                      <input
+                        value={apiBaseInput}
+                        onChange={(e) => setApiBaseInput(e.target.value)}
+                        placeholder="https://..."
+                        className="mono"
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleUseDefault}
+                        className="cursor-pointer whitespace-nowrap"
+                        style={ghostButtonStyle}
+                      >
+                        デフォルトを使う
+                      </button>
+                    </div>
+                    <div
+                      className="mono mt-1"
+                      style={{ fontSize: 10.5, color: "var(--ink-3)" }}
+                    >
+                      設定元:{" "}
+                      <span
+                        style={{
+                          color:
+                            info.apiBaseSource === "db"
+                              ? "var(--success)"
+                              : info.apiBaseSource === "env"
+                                ? "var(--ink-2)"
+                                : "var(--warning)",
+                        }}
+                      >
+                        {info.apiBaseSource === "db"
+                          ? "DB (UI入力)"
+                          : info.apiBaseSource === "env"
+                            ? ".env.local"
+                            : "未設定"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <FormLabel required={!info.licenseConfigured}>
+                    ライセンスキー
+                  </FormLabel>
+                  <div>
+                    <input
+                      value={licenseInput}
+                      onChange={(e) => setLicenseInput(e.target.value)}
+                      placeholder={
+                        info.licenseConfigured
+                          ? `${info.licenseMasked || ""} (変更する場合のみ入力)`
+                          : "tlap_..."
+                      }
+                      className="mono"
+                      style={inputStyle}
+                      type="password"
+                      autoComplete="off"
+                    />
+                    <div
+                      className="mono mt-1"
+                      style={{ fontSize: 10.5, color: "var(--ink-3)" }}
+                    >
+                      現在:{" "}
+                      <span
+                        style={{
+                          color: info.licenseConfigured
+                            ? "var(--ink)"
+                            : "var(--warning)",
+                        }}
+                      >
+                        {info.licenseConfigured
+                          ? info.licenseMasked
+                          : "未設定"}
+                      </span>
+                      {info.licenseSource && (
+                        <>
+                          {" · 設定元: "}
+                          <span
+                            style={{
+                              color:
+                                info.licenseSource === "db"
+                                  ? "var(--success)"
+                                  : info.licenseSource === "env"
+                                    ? "var(--ink-2)"
+                                    : "var(--warning)",
+                            }}
+                          >
+                            {info.licenseSource === "db"
+                              ? "DB (UI入力)"
+                              : info.licenseSource === "env"
+                                ? ".env.local"
+                                : "未設定"}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="cursor-pointer disabled:opacity-50"
+                    style={primaryButtonStyle}
+                  >
+                    {saving ? "保存中..." : "保存"}
+                  </button>
+                  {saveMsg && (
+                    <span
+                      style={{
+                        fontSize: 11.5,
+                        color: saveMsg.startsWith("✓")
+                          ? "var(--success)"
+                          : "var(--ink-2)",
+                      }}
+                    >
+                      {saveMsg}
+                    </span>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -161,18 +339,9 @@ export default function LicenseSettingsClient() {
             <div className="flex items-center gap-3">
               <button
                 onClick={runPing}
-                disabled={pinging || !info?.apiBase || !info?.licenseConfigured}
+                disabled={pinging || !isConfigured}
                 className="cursor-pointer disabled:opacity-50"
-                style={{
-                  padding: "7px 18px",
-                  border: "none",
-                  background: "var(--accent)",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  color: "#fff",
-                  borderRadius: 3,
-                  letterSpacing: "0.04em",
-                }}
+                style={primaryButtonStyle}
               >
                 {pinging ? "テスト中..." : "接続テスト実行 ▶"}
               </button>
@@ -180,7 +349,6 @@ export default function LicenseSettingsClient() {
             </div>
           </div>
         </div>
-
       </div>
     </>
   );
@@ -261,38 +429,59 @@ function PanelHeader({ title, sub }: { title: string; sub?: string }) {
   );
 }
 
-function KV({
-  label,
-  value,
-  warning,
+function FormLabel({
+  children,
+  required,
 }: {
-  label: string;
-  value: string;
-  warning?: boolean;
+  children: React.ReactNode;
+  required?: boolean;
 }) {
   return (
-    <div
-      className="mono flex"
-      style={{ fontSize: 11.5, color: "var(--ink)" }}
+    <label
+      className="flex items-center gap-1"
+      style={{
+        fontSize: 11.5,
+        fontWeight: 600,
+        color: "var(--ink)",
+        paddingTop: 7,
+      }}
     >
-      <span
-        style={{
-          color: "var(--ink-3)",
-          width: 120,
-          letterSpacing: "0.06em",
-        }}
-      >
-        {label}
-      </span>
-      <span
-        className="break-all"
-        style={{
-          fontWeight: 600,
-          color: warning ? "var(--warning)" : "var(--ink)",
-        }}
-      >
-        {value}
-      </span>
-    </div>
+      {children}
+      {required && (
+        <span style={{ color: "var(--error)", fontSize: 10 }}>*</span>
+      )}
+    </label>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "6px 10px",
+  border: "1px solid var(--rule)",
+  borderRadius: 3,
+  fontSize: 12,
+  background: "var(--bg-sunken)",
+  outline: "none",
+  color: "var(--ink)",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  padding: "7px 18px",
+  border: "none",
+  background: "var(--accent)",
+  fontSize: 12.5,
+  fontWeight: 700,
+  color: "#fff",
+  borderRadius: 3,
+  letterSpacing: "0.04em",
+};
+
+const ghostButtonStyle: React.CSSProperties = {
+  padding: "6px 12px",
+  border: "1px solid var(--rule)",
+  background: "var(--bg-card)",
+  fontSize: 11.5,
+  color: "var(--ink)",
+  borderRadius: 3,
+  fontWeight: 500,
+};

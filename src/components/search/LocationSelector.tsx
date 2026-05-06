@@ -20,7 +20,7 @@ export default function LocationSelector({
   onToggle,
   onClear,
 }: LocationSelectorProps) {
-  const [mode, setMode] = useState<Mode>("keyword");
+  const [mode, setMode] = useState<Mode>("geo");
   const [keywordTab, setKeywordTab] = useState<KeywordTab>("train");
 
   const keywordLocations = selected.filter((l) => l.type !== "prefecture");
@@ -36,11 +36,11 @@ export default function LocationSelector({
             borderRadius: 3,
           }}
         >
-          <SegBtn active={mode === "keyword"} onClick={() => setMode("keyword")}>
-            キーワード地名検索
-          </SegBtn>
           <SegBtn active={mode === "geo"} onClick={() => setMode("geo")}>
             位置情報エミュレート
+          </SegBtn>
+          <SegBtn active={mode === "keyword"} onClick={() => setMode("keyword")}>
+            キーワード地名検索
           </SegBtn>
         </div>
         <p className="mt-1.5" style={{ fontSize: 11, color: "var(--ink-3)" }}>

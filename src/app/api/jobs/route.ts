@@ -2,8 +2,20 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { createJob, createSearchQueries, listJobs } from "@/lib/db/queries";
 import { runSearchJob } from "@/lib/services/search-orchestrator";
-import { formatXGeoHeader } from "@/lib/config/uule";
+import { makeUule } from "@/lib/config/uule";
+import { PREFECTURE_GROUPS } from "@/lib/config/prefectures";
 import type { SelectedLocation } from "@/types/location";
+
+// id → canonicalName の lookup map
+const CANONICAL_BY_ID: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const group of PREFECTURE_GROUPS) {
+    for (const pref of group.prefectures) {
+      map[pref.id] = pref.canonicalName;
+    }
+  }
+  return map;
+})();
 
 export async function POST(request: Request) {
   try {
@@ -46,12 +58,17 @@ export async function POST(request: Request) {
     });
 
     const queries = locations.map((loc) => {
-      if (loc.type === "prefecture" && loc.lat != null && loc.lng != null) {
+      if (loc.type === "prefecture") {
+        const canonical = CANONICAL_BY_ID[loc.id];
+        const uule = canonical ? makeUule(canonical) : null;
+        // ハイブリッド方式: クエリに都道府県名を追加 (確実な地域マッチ用) + uule (バックアップ)
+        // Google は uule を必ずしも honor しないので、クエリ自体に地名を入れて確実に地域絞込みする
         return {
           jobId,
           locationName: loc.name,
-          searchQuery: keyword.trim(),
-          geoHeader: formatXGeoHeader(loc.lat, loc.lng),
+          searchQuery: `${keyword.trim()} ${loc.name}`,
+          // schema column "geo_header" を流用して uule URL パラメータを保存
+          geoHeader: uule,
         };
       }
       return {

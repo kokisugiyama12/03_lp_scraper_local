@@ -45,8 +45,8 @@ export default function LocationSelector({
         </div>
         <p className="mt-1.5" style={{ fontSize: 11, color: "var(--ink-3)" }}>
           {mode === "keyword"
-            ? "クエリに地名を追加して検索（例: 美容院 渋谷駅）"
-            : "X-Geoヘッダーで位置をエミュレートしてその地域の広告を取得"}
+            ? "クエリに駅名・エリア名を追加して検索（例: 美容院 渋谷駅）"
+            : "クエリに都道府県名を追加 + Google の位置シグナル (uule) を送信（例: 美容院 北海道）"}
         </p>
       </div>
 

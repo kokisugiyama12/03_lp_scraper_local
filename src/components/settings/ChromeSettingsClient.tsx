@@ -11,7 +11,7 @@ interface ChromeStatus {
 }
 
 const LAUNCH_CMD =
-  'open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug';
+  'open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug --disable-extensions';
 
 export default function ChromeSettingsClient() {
   const [status, setStatus] = useState<ChromeStatus | null>(null);

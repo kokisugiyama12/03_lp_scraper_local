@@ -19,7 +19,8 @@ export async function searchGoogleAds(
   options?: { geoHeader?: string; maxPages?: number }
 ): Promise<AdResult[]> {
   const maxPages = options?.maxPages ?? 1;
-  const geoHeader = options?.geoHeader;
+  // schema 上は geoHeader だが、現在は uule URL パラメータの値を入れている
+  const uule = options?.geoHeader;
 
   const browser = await getBrowser();
   const context = browser.contexts()[0] || await browser.newContext();
@@ -28,17 +29,40 @@ export async function searchGoogleAds(
   const seenDomains = new Set<string>();
 
   try {
-    if (geoHeader) {
-      await page.setExtraHTTPHeaders({ "X-Geo": geoHeader });
-    }
-
     for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
       const start = pageIndex * 10;
-      let url = `https://www.google.co.jp/search?q=${encodeURIComponent(query)}&hl=ja`;
-      if (start > 0) url += `&start=${start}`;
+      const params = new URLSearchParams({
+        q: query,
+        hl: "ja",
+        gl: "jp",
+      });
+      if (uule) params.set("uule", uule);
+      if (start > 0) params.set("start", String(start));
+      const url = `https://www.google.co.jp/search?${params.toString()}`;
 
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-      await randomDelay(2000, 3000);
+      await page.goto(url, { waitUntil: "load", timeout: 30000 });
+
+      // 広告は JavaScript で遅延ロードされることが多いため、#tads/#tadsb 内に
+      // 実リンクが入るまで最大8秒待つ
+      await page
+        .waitForFunction(
+          () => {
+            const containers = document.querySelectorAll(
+              "#tads, #tadsb, [aria-label='広告']"
+            );
+            for (const c of containers) {
+              const linkCount = c.querySelectorAll('a[href^="http"]').length;
+              if (linkCount > 0) return true;
+            }
+            return false;
+          },
+          { timeout: 8000 }
+        )
+        .catch(() => {
+          // 広告がない検索結果もあるのでタイムアウトは無視
+        });
+
+      await randomDelay(800, 1500);
 
       const pageAds = await page.evaluate(() => {
         const found: { headline: string; description: string; url: string }[] = [];

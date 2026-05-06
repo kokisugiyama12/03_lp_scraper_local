@@ -28,6 +28,8 @@ export async function POST() {
     }
 
     // Launch Chrome
+    // --disable-extensions で位置スプーフィング系の拡張機能を無効化
+    // (拡張機能が uule URLパラメータの位置指定を上書きしてしまうため)
     const child = spawn(
       "open",
       [
@@ -36,6 +38,7 @@ export async function POST() {
         "--args",
         "--remote-debugging-port=9222",
         "--user-data-dir=/tmp/chrome-debug",
+        "--disable-extensions",
       ],
       { detached: true, stdio: "ignore" }
     );

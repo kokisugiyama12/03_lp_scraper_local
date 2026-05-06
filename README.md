@@ -85,7 +85,7 @@ Spreadsheetエクスポート機能を使う場合:
 Playwrightはリアルなブラウザに接続するため、Chromeをリモートデバッグ付きで起動する必要がある:
 
 ```bash
-open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
+open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug --disable-extensions
 ```
 
 ### 5. 開発サーバー起動

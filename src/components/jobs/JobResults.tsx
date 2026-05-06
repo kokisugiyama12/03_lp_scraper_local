@@ -1,20 +1,41 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  getAreaCodePrefectures,
-  isTollFree,
-} from "@/lib/config/area-codes";
+import { isTollFree } from "@/lib/config/area-codes";
 
 interface ResultRow {
   locationName: string;
   adUrl: string;
   landingUrl?: string;
+  companyNameFormal?: string | null;
+  companyNameBrand?: string | null;
+  phoneNumber1?: string | null;
+  phoneNumber2?: string | null;
+  phoneNumber3?: string | null;
+  phoneNumber4?: string | null;
+  phoneNumber5?: string | null;
+  // 後方互換
   companyName?: string | null;
   phoneNumber?: string | null;
   presidentName?: string | null;
   adHeadline?: string | null;
   extractionStatus?: string;
+}
+
+function getDisplayName(r: ResultRow): string {
+  return r.companyNameFormal || r.companyNameBrand || r.companyName || "";
+}
+
+function getAllPhones(r: ResultRow): string[] {
+  const nums = [
+    r.phoneNumber1,
+    r.phoneNumber2,
+    r.phoneNumber3,
+    r.phoneNumber4,
+    r.phoneNumber5,
+  ].filter(Boolean) as string[];
+  if (nums.length === 0 && r.phoneNumber) return [r.phoneNumber];
+  return nums;
 }
 
 type FilterKey = "all" | "areaCodeOnly" | "noFreedial" | "uniqueDomain";
@@ -27,22 +48,27 @@ export default function JobResults({ results }: { results: ResultRow[] }) {
     let rows = results;
     if (search.trim()) {
       const q = search.toLowerCase();
-      rows = rows.filter(
-        (r) =>
-          (r.companyName || "").toLowerCase().includes(q) ||
-          (r.phoneNumber || "").includes(q) ||
+      rows = rows.filter((r) => {
+        const allPhones = getAllPhones(r).join(" ");
+        return (
+          getDisplayName(r).toLowerCase().includes(q) ||
+          (r.companyNameBrand || "").toLowerCase().includes(q) ||
+          allPhones.includes(q) ||
           (r.landingUrl || r.adUrl).toLowerCase().includes(q) ||
           (r.presidentName || "").toLowerCase().includes(q)
-      );
+        );
+      });
     }
     if (filter === "areaCodeOnly") {
-      rows = rows.filter(
-        (r) => r.phoneNumber && !isTollFree(r.phoneNumber)
-      );
+      rows = rows.filter((r) => {
+        const phones = getAllPhones(r);
+        return phones.some((p) => !isTollFree(p));
+      });
     } else if (filter === "noFreedial") {
-      rows = rows.filter(
-        (r) => !r.phoneNumber || !isTollFree(r.phoneNumber)
-      );
+      rows = rows.filter((r) => {
+        const phones = getAllPhones(r);
+        return phones.length === 0 || phones.some((p) => !isTollFree(p));
+      });
     } else if (filter === "uniqueDomain") {
       const seen = new Set<string>();
       rows = rows.filter((r) => {
@@ -109,19 +135,20 @@ export default function JobResults({ results }: { results: ResultRow[] }) {
           positive={stats.withPhone === stats.total}
         />
         <StatCell
+          label="正式名称取得"
+          value={`${Math.round(
+            stats.total > 0 ? (stats.withFormal / stats.total) * 100 : 0
+          )}%`}
+          delta={`${stats.withFormal}/${stats.total}`}
+          positive={stats.withFormal === stats.total}
+          warning={stats.withFormal < stats.total * 0.5}
+        />
+        <StatCell
           label="代表者抽出"
           value={`${Math.round(
             stats.total > 0 ? (stats.withPresident / stats.total) * 100 : 0
           )}%`}
           delta={`${stats.withPresident}/${stats.total}`}
-        />
-        <StatCell
-          label="フリーダイヤル比率"
-          value={`${Math.round(
-            stats.total > 0 ? (stats.freedial / stats.total) * 100 : 0
-          )}%`}
-          delta={`${stats.freedial}/${stats.total}`}
-          warning={stats.freedial > stats.total * 0.5}
         />
         <StatCell
           label="ユニークドメイン"
@@ -225,61 +252,76 @@ export default function JobResults({ results }: { results: ResultRow[] }) {
               <Th w={36} center>
                 #
               </Th>
-              <Th w={80}>エリア</Th>
-              <Th>会社名</Th>
-              <Th w={130}>電話番号</Th>
-              <Th w={100}>市外局番</Th>
-              <Th w={120}>代表者</Th>
+              <Th w={70}>エリア</Th>
+              <Th w={180}>正式名称</Th>
+              <Th w={140}>ブランド名</Th>
+              <Th w={120}>TEL1</Th>
+              <Th w={120}>TEL2</Th>
+              <Th w={120}>TEL3</Th>
+              <Th w={100}>代表者</Th>
               <Th>URL</Th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r, i) => (
-              <tr
-                key={i}
-                style={{ borderBottom: "1px solid var(--rule-soft)" }}
-              >
-                <Td center muted mono>
-                  {String(i + 1).padStart(2, "0")}
-                </Td>
-                <Td>
-                  <span
-                    style={{
-                      fontSize: 10.5,
-                      padding: "1px 6px",
-                      borderRadius: 2,
-                      background: "var(--bg-sunken)",
-                      border: "1px solid var(--rule)",
-                      color: "var(--ink-2)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {r.locationName}
-                  </span>
-                </Td>
-                <Td strong>{r.companyName || "-"}</Td>
-                <Td mono>{r.phoneNumber || "-"}</Td>
-                <Td>
-                  <RegionTag phone={r.phoneNumber || ""} />
-                </Td>
-                <Td>{r.presidentName || "-"}</Td>
-                <Td>
-                  <a
-                    href={r.landingUrl || r.adUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mono"
-                    style={{
-                      color: "var(--accent)",
-                      textDecoration: "none",
-                      fontSize: 11.5,
-                    }}
-                  >
-                    {truncateUrl(r.landingUrl || r.adUrl)} ↗
-                  </a>
-                </Td>
-              </tr>
-            ))}
+            {filtered.map((r, i) => {
+              const phones = getAllPhones(r);
+              return (
+                <tr
+                  key={i}
+                  style={{ borderBottom: "1px solid var(--rule-soft)" }}
+                >
+                  <Td center muted mono>
+                    {String(i + 1).padStart(2, "0")}
+                  </Td>
+                  <Td>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        padding: "1px 6px",
+                        borderRadius: 2,
+                        background: "var(--bg-sunken)",
+                        border: "1px solid var(--rule)",
+                        color: "var(--ink-2)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {r.locationName}
+                    </span>
+                  </Td>
+                  <Td strong>
+                    {r.companyNameFormal || (
+                      <span style={{ color: "var(--warning)" }}>—</span>
+                    )}
+                  </Td>
+                  <Td>{r.companyNameBrand || "-"}</Td>
+                  <Td mono>
+                    <PhoneCell phone={phones[0]} />
+                  </Td>
+                  <Td mono>
+                    <PhoneCell phone={phones[1]} />
+                  </Td>
+                  <Td mono>
+                    <PhoneCell phone={phones[2]} />
+                  </Td>
+                  <Td>{r.presidentName || "-"}</Td>
+                  <Td>
+                    <a
+                      href={r.landingUrl || r.adUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mono"
+                      style={{
+                        color: "var(--accent)",
+                        textDecoration: "none",
+                        fontSize: 11.5,
+                      }}
+                    >
+                      {truncateUrl(r.landingUrl || r.adUrl)} ↗
+                    </a>
+                  </Td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -293,15 +335,19 @@ function computeStats(results: ResultRow[]) {
   const domains = new Set<string>();
   let withPhone = 0;
   let withPresident = 0;
-  let freedial = 0;
+  let freedialOnly = 0;
+  let withFormal = 0;
   for (const r of results) {
-    if (r.companyName) companies.add(r.companyName);
+    const name = getDisplayName(r);
+    if (name) companies.add(name);
     domains.add(hostname(r.landingUrl || r.adUrl));
-    if (r.phoneNumber) {
+    const phones = getAllPhones(r);
+    if (phones.length > 0) {
       withPhone++;
-      if (isTollFree(r.phoneNumber)) freedial++;
+      if (phones.every((p) => isTollFree(p))) freedialOnly++;
     }
     if (r.presidentName) withPresident++;
+    if (r.companyNameFormal) withFormal++;
   }
   return {
     total,
@@ -309,8 +355,22 @@ function computeStats(results: ResultRow[]) {
     uniqueDomains: domains.size,
     withPhone,
     withPresident,
-    freedial,
+    freedial: freedialOnly,
+    withFormal,
   };
+}
+
+function PhoneCell({ phone }: { phone: string | undefined }) {
+  if (!phone) return <span style={{ color: "var(--ink-3)" }}>—</span>;
+  return (
+    <span
+      style={{
+        color: isTollFree(phone) ? "var(--warning)" : "var(--ink)",
+      }}
+    >
+      {phone}
+    </span>
+  );
 }
 
 function StatCell({
@@ -416,48 +476,6 @@ function FilterChip({
     >
       {children}
     </button>
-  );
-}
-
-const REGION_COLORS: Record<string, { bg: string; fg: string }> = {
-  freedial: { bg: "#fdf6e3", fg: "#876915" },
-  tokyo: { bg: "#f0eaf5", fg: "#52297a" },
-  osaka: { bg: "#fde8e8", fg: "#86323a" },
-  fukuoka: { bg: "#e8f0fb", fg: "#1e3a5f" },
-  chiba: { bg: "#eef4e8", fg: "#3a5a1f" },
-  kanagawa: { bg: "#e8f4f4", fg: "#1f5a5a" },
-  saitama: { bg: "#fdf0e8", fg: "#864e1f" },
-  aichi: { bg: "#f4ebe0", fg: "#5a3f1f" },
-  hokkaido: { bg: "#e8eef8", fg: "#1f3a6a" },
-  unknown: { bg: "#eee", fg: "#555" },
-};
-
-function RegionTag({ phone }: { phone: string }) {
-  if (!phone) return <span style={{ color: "var(--ink-3)" }}>—</span>;
-  let tag = "unknown";
-  if (isTollFree(phone)) {
-    tag = "freedial";
-  } else {
-    const prefs = getAreaCodePrefectures(phone);
-    if (prefs.length > 0) tag = prefs[0];
-  }
-  const c = REGION_COLORS[tag] || REGION_COLORS.unknown;
-  return (
-    <span
-      className="mono"
-      style={{
-        fontSize: 10,
-        padding: "1px 6px",
-        borderRadius: 2,
-        background: c.bg,
-        color: c.fg,
-        fontWeight: 700,
-        letterSpacing: "0.04em",
-        textTransform: "uppercase",
-      }}
-    >
-      {tag}
-    </span>
   );
 }
 

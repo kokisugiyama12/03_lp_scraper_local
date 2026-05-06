@@ -14,6 +14,14 @@ interface ResultRow {
   locationName: string;
   adUrl: string;
   landingUrl?: string;
+  companyNameFormal?: string | null;
+  companyNameBrand?: string | null;
+  phoneNumber1?: string | null;
+  phoneNumber2?: string | null;
+  phoneNumber3?: string | null;
+  phoneNumber4?: string | null;
+  phoneNumber5?: string | null;
+  // 後方互換
   companyName?: string | null;
   phoneNumber?: string | null;
   presidentName?: string | null;

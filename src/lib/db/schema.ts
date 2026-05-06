@@ -11,6 +11,10 @@ export const searchJobs = sqliteTable("search_jobs", {
   totalResults: integer("total_results").notNull().default(0),
   errorMessage: text("error_message"),
   maxPages: integer("max_pages").notNull().default(1),
+  // 連絡先抽出時の深掘り検索回数の上限 (1〜5)。1=深掘りなし
+  extractionDepth: integer("extraction_depth").notNull().default(2),
+  // 深掘り検索間の遅延秒数 (5〜15、bot検知回避のため)
+  interSearchDelaySec: integer("inter_search_delay_sec").notNull().default(10),
   exportedAt: text("exported_at"),
   createdAt: text("created_at")
     .notNull()
@@ -72,8 +76,20 @@ export const searchResults = sqliteTable("search_results", {
     .references(() => searchQueries.id),
   adUrl: text("ad_url").notNull(),
   landingUrl: text("landing_url"),
+  // 旧 companyName は後方互換のため残置 (未使用)。新規データは Formal/Brand に書く
   companyName: text("company_name"),
+  // 法人格を含む正式名称 (例: 医療法人社団○○、株式会社サンプル)
+  companyNameFormal: text("company_name_formal"),
+  // 通称・店舗名 (例: ○○クリニック)
+  companyNameBrand: text("company_name_brand"),
+  // 旧 phoneNumber は後方互換のため残置 (未使用)。新規データは phoneNumber1〜5 に書く
   phoneNumber: text("phone_number"),
+  // 電話番号を優先度順 (携帯 > 市外局番 > 050 > フリーダイヤル) で最大5件
+  phoneNumber1: text("phone_number1"),
+  phoneNumber2: text("phone_number2"),
+  phoneNumber3: text("phone_number3"),
+  phoneNumber4: text("phone_number4"),
+  phoneNumber5: text("phone_number5"),
   presidentName: text("president_name"),
   adHeadline: text("ad_headline"),
   adDescription: text("ad_description"),

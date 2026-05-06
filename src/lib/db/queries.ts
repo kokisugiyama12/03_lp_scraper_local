@@ -49,6 +49,8 @@ export function createJob(job: {
   spreadsheetId?: string;
   totalQueries: number;
   maxPages?: number;
+  extractionDepth?: number;
+  interSearchDelaySec?: number;
 }) {
   getDb().insert(searchJobs).values({
     id: job.id,
@@ -57,6 +59,8 @@ export function createJob(job: {
     spreadsheetId: job.spreadsheetId ?? null,
     totalQueries: job.totalQueries,
     maxPages: job.maxPages ?? 1,
+    extractionDepth: job.extractionDepth ?? 2,
+    interSearchDelaySec: job.interSearchDelaySec ?? 10,
   }).run();
 }
 
@@ -161,8 +165,9 @@ export function createResult(result: {
   queryId: number;
   adUrl: string;
   landingUrl?: string;
-  companyName?: string;
-  phoneNumber?: string;
+  companyNameFormal?: string | null;
+  companyNameBrand?: string | null;
+  phones?: string[];
   presidentName?: string;
   adHeadline?: string;
   adDescription?: string;
@@ -170,13 +175,24 @@ export function createResult(result: {
   extractionStatus: string;
   rawPageText?: string;
 }) {
+  const phones = result.phones ?? [];
+  // 互換用 companyName / phoneNumber は formal/最初の電話番号を入れておく
+  const compat =
+    result.companyNameFormal ?? result.companyNameBrand ?? null;
   getDb().insert(searchResults).values({
     jobId: result.jobId,
     queryId: result.queryId,
     adUrl: result.adUrl,
     landingUrl: result.landingUrl ?? null,
-    companyName: result.companyName ?? null,
-    phoneNumber: result.phoneNumber ?? null,
+    companyName: compat,
+    companyNameFormal: result.companyNameFormal ?? null,
+    companyNameBrand: result.companyNameBrand ?? null,
+    phoneNumber: phones[0] ?? null,
+    phoneNumber1: phones[0] ?? null,
+    phoneNumber2: phones[1] ?? null,
+    phoneNumber3: phones[2] ?? null,
+    phoneNumber4: phones[3] ?? null,
+    phoneNumber5: phones[4] ?? null,
     presidentName: result.presidentName ?? null,
     adHeadline: result.adHeadline ?? null,
     adDescription: result.adDescription ?? null,

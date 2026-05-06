@@ -1,8 +1,11 @@
 export interface ContactInfo {
-  phoneNumber: string | null;
+  /** 法人格を含む正式名称 (例: 医療法人社団○○、株式会社サンプル)。なければ null */
+  companyNameFormal: string | null;
+  /** 通称・店舗名 (例: ○○クリニック)。formal と同一なら null */
+  companyNameBrand: string | null;
   presidentName: string | null;
-  companyName: string | null;
-  allPhoneNumbers?: string[];
+  /** 全ての電話番号 (重複なし、優先度順ソート前のフラットリスト) */
+  phones: string[];
 }
 
 export interface AdResult {

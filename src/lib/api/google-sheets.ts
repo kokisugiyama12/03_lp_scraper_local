@@ -5,8 +5,13 @@ interface SheetRow {
   locationName: string;
   adUrl: string;
   landingUrl: string | null;
-  companyName: string | null;
-  phoneNumber: string | null;
+  companyNameFormal: string | null;
+  companyNameBrand: string | null;
+  phoneNumber1: string | null;
+  phoneNumber2: string | null;
+  phoneNumber3: string | null;
+  phoneNumber4: string | null;
+  phoneNumber5: string | null;
   presidentName: string | null;
   adHeadline: string | null;
   adDescription: string | null;
@@ -29,8 +34,13 @@ const HEADER = [
   "出力日",
   "出力時刻",
   "検索エリア",
-  "会社名",
-  "電話番号",
+  "正式名称",
+  "ブランド名",
+  "電話番号1",
+  "電話番号2",
+  "電話番号3",
+  "電話番号4",
+  "電話番号5",
   "代表者名",
   "広告見出し",
   "広告説明文",
@@ -110,8 +120,13 @@ export async function exportToSheet(
     exportDate,
     exportTime,
     r.locationName,
-    r.companyName || "",
-    r.phoneNumber || "",
+    r.companyNameFormal || "",
+    r.companyNameBrand || "",
+    r.phoneNumber1 || "",
+    r.phoneNumber2 || "",
+    r.phoneNumber3 || "",
+    r.phoneNumber4 || "",
+    r.phoneNumber5 || "",
     r.presidentName || "",
     r.adHeadline || "",
     r.adDescription || "",

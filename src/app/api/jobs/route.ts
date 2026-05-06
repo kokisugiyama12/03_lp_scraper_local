@@ -25,11 +25,15 @@ export async function POST(request: Request) {
       locations,
       spreadsheetId,
       maxPages,
+      extractionDepth,
+      interSearchDelaySec,
     }: {
       keyword: string;
       locations: SelectedLocation[];
       spreadsheetId?: string;
       maxPages?: number;
+      extractionDepth?: number;
+      interSearchDelaySec?: number;
     } = body;
 
     if (!keyword?.trim()) {
@@ -47,6 +51,8 @@ export async function POST(request: Request) {
 
     const jobId = nanoid(12);
     const clampedPages = Math.min(Math.max(maxPages ?? 1, 1), 5);
+    const clampedDepth = Math.min(Math.max(extractionDepth ?? 2, 1), 5);
+    const clampedDelay = Math.min(Math.max(interSearchDelaySec ?? 10, 5), 15);
 
     createJob({
       id: jobId,
@@ -55,6 +61,8 @@ export async function POST(request: Request) {
       spreadsheetId: spreadsheetId || undefined,
       totalQueries: locations.length,
       maxPages: clampedPages,
+      extractionDepth: clampedDepth,
+      interSearchDelaySec: clampedDelay,
     });
 
     const queries = locations.map((loc) => {

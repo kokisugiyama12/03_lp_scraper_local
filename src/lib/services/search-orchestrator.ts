@@ -1,7 +1,14 @@
 import { searchGoogleAds } from "@/lib/scraper/google-search";
-import { scrapePage, scrapeCompanyPages, searchCompanyPhone } from "@/lib/scraper/page-scraper";
-import { extractContactInfo } from "@/lib/ai/extract-contact";
-import { getLocationIdFromName } from "@/lib/config/area-codes";
+import {
+  scrapePage,
+  scrapeCompanyPages,
+  searchCompanyPhone,
+} from "@/lib/scraper/page-scraper";
+import {
+  extractContactInfo,
+  mergeContact,
+} from "@/lib/ai/extract-contact";
+import { sortPhones, hasLandline } from "@/lib/utils/phones";
 import {
   getJob,
   getQueriesForJob,
@@ -13,21 +20,147 @@ import {
 } from "@/lib/db/queries";
 import { jobEvents } from "./event-bus";
 import { closeBrowser } from "@/lib/scraper/browser";
+import type { ContactInfo } from "@/types/result";
 
 function randomDelay(min: number, max: number): Promise<void> {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min;
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const EMPTY_CONTACT: ContactInfo = {
+  companyNameFormal: null,
+  companyNameBrand: null,
+  presidentName: null,
+  phones: [],
+};
+
+interface ProcessAdResult {
+  contact: ContactInfo;
+  finalUrl: string;
+  rawPageText: string;
+  callsUsed: number;
+}
+
+/**
+ * 1つの広告URLに対して: LPスクレイプ → 正式社名解決 → 電話番号深掘り
+ * の順で情報を収集する。市外局番が見つかれば早期終了、見つからなければ
+ * extractionDepth まで Google再検索を繰り返す。
+ */
+async function processAd(
+  ad: { url: string; headline: string; description: string },
+  extractionDepth: number,
+  interSearchDelaySec: number
+): Promise<ProcessAdResult> {
+  const depthLimit = Math.max(1, Math.min(5, extractionDepth));
+  const interDelayMs = Math.max(5, Math.min(15, interSearchDelaySec)) * 1000;
+  let merged: ContactInfo = { ...EMPTY_CONTACT };
+  let callsUsed = 0;
+
+  // Step 1: LP本文を取得 + AI抽出 (必ず実行、これで 1 calls)
+  const { text: lpText, finalUrl } = await scrapePage(ad.url);
+  if (lpText) {
+    const c1 = await extractContactInfo(lpText);
+    merged = mergeContact(merged, c1);
+    callsUsed++;
+    console.log(
+      `[Step1] ${ad.url} → formal=${merged.companyNameFormal}, brand=${merged.companyNameBrand}, phones=[${merged.phones.join(",")}]`
+    );
+  } else {
+    return {
+      contact: merged,
+      finalUrl: finalUrl || ad.url,
+      rawPageText: "",
+      callsUsed,
+    };
+  }
+
+  // Step 2: 同ドメイン内の会社概要ページを巡回 (Google再検索ではないので遅延短め)
+  if (callsUsed < depthLimit && !hasLandline(merged.phones)) {
+    try {
+      const compText = await scrapeCompanyPages(finalUrl || ad.url);
+      if (compText) {
+        const combined = `${lpText}\n\n---\n\n${compText}`;
+        const c2 = await extractContactInfo(combined);
+        merged = mergeContact(merged, c2);
+        callsUsed++;
+        console.log(
+          `[Step2] same-domain → formal=${merged.companyNameFormal}, brand=${merged.companyNameBrand}, phones=[${merged.phones.join(",")}]`
+        );
+      }
+    } catch (err) {
+      console.error("[Step2] Error:", err);
+    }
+  }
+
+  // Step 3: 正式社名が未取得の場合、ブランド名で Google 検索して法人名を解決
+  if (
+    callsUsed < depthLimit &&
+    !merged.companyNameFormal &&
+    merged.companyNameBrand
+  ) {
+    await new Promise((r) => setTimeout(r, interDelayMs));
+    try {
+      const searchText = (
+        await searchCompanyPhone(`${merged.companyNameBrand} 法人名`)
+      ).text;
+      if (searchText) {
+        const c3 = await extractContactInfo(searchText);
+        merged = mergeContact(merged, c3);
+        callsUsed++;
+        console.log(
+          `[Step3] formal name search → formal=${merged.companyNameFormal}`
+        );
+      }
+    } catch (err) {
+      console.error("[Step3] Error:", err);
+    }
+  }
+
+  // Step 4以降: 市外局番が出るまで Google で社名再検索を繰り返す
+  while (callsUsed < depthLimit && !hasLandline(merged.phones)) {
+    const queryName =
+      merged.companyNameFormal || merged.companyNameBrand || null;
+    if (!queryName) break; // 検索キーがない
+
+    await new Promise((r) => setTimeout(r, interDelayMs));
+    try {
+      const searchText = (
+        await searchCompanyPhone(`${queryName} 電話番号`)
+      ).text;
+      if (!searchText) break;
+      const c = await extractContactInfo(searchText);
+      const before = merged.phones.length;
+      merged = mergeContact(merged, c);
+      callsUsed++;
+      console.log(
+        `[Step4 calls=${callsUsed}] phone search → phones=[${merged.phones.join(",")}]`
+      );
+      // 進捗なし (新たな電話番号が増えていない) なら無駄な深掘り抑止のため break
+      if (merged.phones.length === before) break;
+    } catch (err) {
+      console.error("[Step4] Error:", err);
+      break;
+    }
+  }
+
+  return {
+    contact: merged,
+    finalUrl: finalUrl || ad.url,
+    rawPageText: lpText,
+    callsUsed,
+  };
+}
+
 export async function runSearchJob(jobId: string): Promise<void> {
   try {
     updateJobStatus(jobId, "running");
-    jobEvents.emit(jobId, {
-      type: "job_started",
-      data: {},
-    });
+    jobEvents.emit(jobId, { type: "job_started", data: {} });
 
     const queries = getQueriesForJob(jobId);
+    const job0 = getJob(jobId);
+    const extractionDepth = job0?.extractionDepth ?? 2;
+    const interSearchDelaySec = job0?.interSearchDelaySec ?? 10;
+    const maxPages = job0?.maxPages ?? 1;
 
     for (let i = 0; i < queries.length; i++) {
       const query = queries[i];
@@ -55,7 +188,7 @@ export async function runSearchJob(jobId: string): Promise<void> {
       try {
         const ads = await searchGoogleAds(query.searchQuery, {
           geoHeader: query.geoHeader ?? undefined,
-          maxPages: job?.maxPages ?? 1,
+          maxPages,
         });
 
         updateQueryStatus(query.id, "completed", ads.length);
@@ -68,63 +201,25 @@ export async function runSearchJob(jobId: string): Promise<void> {
           },
         });
 
-        const locationId = getLocationIdFromName(query.locationName);
-
         for (const ad of ads) {
           try {
-            // Step 1: LP をスクレイピング
-            const { text: lpText, finalUrl } = await scrapePage(ad.url);
-            let contact = await extractContactInfo(lpText, { locationId });
-            console.log(`[Step1] ${ad.url} → company=${contact.companyName}, phone=${contact.phoneNumber}, allPhones=${contact.allPhoneNumbers?.join(",")}`);
+            const {
+              contact,
+              finalUrl,
+              rawPageText,
+            } = await processAd(ad, extractionDepth, interSearchDelaySec);
 
-            // Step 2: 会社名 or 電話番号 or 代表者名が取れなければ同ドメイン内を探索
-            if (!contact.companyName || !contact.phoneNumber || !contact.presidentName) {
-              console.log(`[Step2] Deep scrape for ${ad.url}`);
-              try {
-                const companyPageText = await scrapeCompanyPages(finalUrl || ad.url);
-                console.log(`[Step2] Company page text length: ${companyPageText.length}`);
-                if (companyPageText) {
-                  const combinedText = `${lpText}\n\n---\n\n${companyPageText}`;
-                  const deepContact = await extractContactInfo(combinedText, { locationId });
-                  console.log(`[Step2] Deep result → company=${deepContact.companyName}, phone=${deepContact.phoneNumber}, allPhones=${deepContact.allPhoneNumbers?.join(",")}`);
-                  contact = {
-                    companyName: contact.companyName || deepContact.companyName,
-                    phoneNumber: contact.phoneNumber || deepContact.phoneNumber,
-                    presidentName: contact.presidentName || deepContact.presidentName,
-                    allPhoneNumbers: [...new Set([...(contact.allPhoneNumbers || []), ...(deepContact.allPhoneNumbers || [])])],
-                  };
-                }
-              } catch (err) {
-                console.error(`[Step2] Error:`, err);
-              }
-            }
+            const sortedPhones = sortPhones(contact.phones).slice(0, 5);
 
-            // Step 3: 会社名はあるが電話番号 or 代表者名がない → Google検索で補完
-            if (contact.companyName && (!contact.phoneNumber || !contact.presidentName)) {
-              console.log(`[Step3] Google search for "${contact.companyName}"`);
-              try {
-                const { text: searchText } = await searchCompanyPhone(contact.companyName);
-                if (searchText) {
-                  const searchContact = await extractContactInfo(searchText, { locationId });
-                  console.log(`[Step3] Search result → phone=${searchContact.phoneNumber}, president=${searchContact.presidentName}`);
-                  if (!contact.phoneNumber && searchContact.phoneNumber) {
-                    contact.phoneNumber = searchContact.phoneNumber;
-                  }
-                  if (!contact.presidentName && searchContact.presidentName) {
-                    contact.presidentName = searchContact.presidentName;
-                  }
-                }
-              } catch (err) {
-                console.error(`[Step3] Error:`, err);
-              }
-            }
-
+            const hasName =
+              contact.companyNameFormal || contact.companyNameBrand;
+            const hasPhone = sortedPhones.length > 0;
             const extractionStatus =
-              contact.companyName && contact.phoneNumber
+              hasName && hasPhone
                 ? "success"
-                : contact.companyName || contact.phoneNumber
+                : hasName || hasPhone
                   ? "partial"
-                  : lpText
+                  : rawPageText
                     ? "partial"
                     : "failed";
 
@@ -133,14 +228,15 @@ export async function runSearchJob(jobId: string): Promise<void> {
               queryId: query.id,
               adUrl: ad.url,
               landingUrl: finalUrl,
-              companyName: contact.companyName ?? undefined,
-              phoneNumber: contact.phoneNumber ?? undefined,
+              companyNameFormal: contact.companyNameFormal,
+              companyNameBrand: contact.companyNameBrand,
+              phones: sortedPhones,
               presidentName: contact.presidentName ?? undefined,
               adHeadline: ad.headline,
               adDescription: ad.description,
               locationName: query.locationName,
               extractionStatus,
-              rawPageText: lpText.slice(0, 2000),
+              rawPageText: rawPageText.slice(0, 2000),
             });
 
             incrementJobResults(jobId);
@@ -150,8 +246,14 @@ export async function runSearchJob(jobId: string): Promise<void> {
               data: {
                 adUrl: ad.url,
                 landingUrl: finalUrl,
-                companyName: contact.companyName,
-                phoneNumber: contact.phoneNumber,
+                companyNameFormal: contact.companyNameFormal,
+                companyNameBrand: contact.companyNameBrand,
+                phones: sortedPhones,
+                phoneNumber1: sortedPhones[0] ?? null,
+                phoneNumber2: sortedPhones[1] ?? null,
+                phoneNumber3: sortedPhones[2] ?? null,
+                phoneNumber4: sortedPhones[3] ?? null,
+                phoneNumber5: sortedPhones[4] ?? null,
                 presidentName: contact.presidentName,
                 adHeadline: ad.headline,
                 adDescription: ad.description,

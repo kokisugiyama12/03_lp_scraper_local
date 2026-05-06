@@ -20,6 +20,8 @@ export default function SearchForm({ onPreviewChange }: SearchFormProps) {
   const [locations, setLocations] = useState<SelectedLocation[]>([]);
   const [spreadsheetUrl, setSpreadsheetUrl] = useState("");
   const [maxPages, setMaxPages] = useState(1);
+  const [extractionDepth, setExtractionDepth] = useState(2);
+  const [interSearchDelaySec, setInterSearchDelaySec] = useState(10);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,12 +37,22 @@ export default function SearchForm({ onPreviewChange }: SearchFormProps) {
   };
 
   const totalQueries = locations.length;
-  const estDurationSec = useMemo(() => {
-    const perQueryAvg = 11.5;
-    const delayAvg = 5.5;
-    return Math.round(totalQueries * (perQueryAvg + delayAvg) * maxPages);
-  }, [totalQueries, maxPages]);
-  const estApiCalls = Math.round(totalQueries * maxPages * 2.2);
+  const { estDurationSec, estApiCalls } = useMemo(() => {
+    const adsPerPage = 4;
+    const lpStepSec = 5; // LPアクセス + AI抽出 1回
+    const deepStepSec = 10 + interSearchDelaySec; // 深掘り1ステップ (AI抽出 + 遅延)
+    const perAdSec = lpStepSec + (extractionDepth - 1) * deepStepSec;
+    const perQuerySec = 5 + adsPerPage * perAdSec; // 5s = Google検索
+    const betweenQueriesSec = 5;
+    const total =
+      totalQueries * maxPages * perQuerySec +
+      Math.max(0, totalQueries - 1) * betweenQueriesSec;
+    const apiCalls = totalQueries * maxPages * adsPerPage * extractionDepth;
+    return {
+      estDurationSec: Math.round(total),
+      estApiCalls: Math.round(apiCalls),
+    };
+  }, [totalQueries, maxPages, extractionDepth, interSearchDelaySec]);
 
   function formatDuration(s: number) {
     if (s <= 0) return "—";
@@ -76,6 +88,8 @@ export default function SearchForm({ onPreviewChange }: SearchFormProps) {
           locations,
           spreadsheetId,
           maxPages,
+          extractionDepth,
+          interSearchDelaySec,
         }),
       });
 
@@ -136,38 +150,43 @@ export default function SearchForm({ onPreviewChange }: SearchFormProps) {
 
           <FormLabel>ページ数</FormLabel>
           <div className="flex items-center gap-3">
-            <div
-              className="flex overflow-hidden"
-              style={{
-                border: "1px solid var(--rule)",
-                borderRadius: 3,
-              }}
-            >
-              {[1, 2, 3, 4, 5].map((n, i) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setMaxPages(n)}
-                  className="mono cursor-pointer font-semibold"
-                  style={{
-                    width: 34,
-                    height: 26,
-                    border: "none",
-                    borderLeft:
-                      i === 0 ? "none" : "1px solid var(--rule)",
-                    background:
-                      n === maxPages ? "var(--accent)" : "var(--bg-card)",
-                    color: n === maxPages ? "#fff" : "var(--ink-2)",
-                    fontSize: 12,
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
+            <SegPicker
+              values={[1, 2, 3, 4, 5]}
+              value={maxPages}
+              onChange={setMaxPages}
+            />
             <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
               1ページあたり最大10広告 · ページ数 × エリア数 = 検索回数
+            </span>
+          </div>
+
+          <FormLabel>抽出の深さ</FormLabel>
+          <div className="flex items-center gap-3">
+            <SegPicker
+              values={[1, 2, 3, 4, 5]}
+              value={extractionDepth}
+              onChange={setExtractionDepth}
+            />
+            <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
+              {extractionDepth === 1
+                ? "1: LP取得のみ (最速、粗め)"
+                : `${extractionDepth}: 市外局番が見つかるまで最大${extractionDepth}回まで深掘り`}
+            </span>
+          </div>
+
+          <FormLabel>深掘り間遅延</FormLabel>
+          <div className="flex items-center gap-3">
+            <SegPicker
+              values={[5, 7, 10, 12, 15]}
+              value={interSearchDelaySec}
+              onChange={setInterSearchDelaySec}
+              suffix="s"
+              widthEach={42}
+            />
+            <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
+              {interSearchDelaySec >= 10
+                ? "10秒以上推奨 (Google bot検知の回避)"
+                : "短くすると bot検知のリスクあり"}
             </span>
           </div>
 
@@ -200,7 +219,7 @@ export default function SearchForm({ onPreviewChange }: SearchFormProps) {
         }}
       >
         <div
-          className="mono flex gap-[18px]"
+          className="mono flex flex-wrap gap-[18px]"
           style={{ fontSize: 11, color: "var(--ink-2)" }}
         >
           <span>
@@ -210,13 +229,19 @@ export default function SearchForm({ onPreviewChange }: SearchFormProps) {
             </strong>
           </span>
           <span>
-            est. duration{" "}
-            <strong style={{ color: "var(--ink)", fontWeight: 700 }}>
+            予想実行時間{" "}
+            <strong
+              style={{
+                color:
+                  estDurationSec > 1800 ? "var(--warning)" : "var(--ink)",
+                fontWeight: 700,
+              }}
+            >
               {formatDuration(estDurationSec)}
             </strong>
           </span>
           <span>
-            API calls{" "}
+            API呼出 上限{" "}
             <strong style={{ color: "var(--ink)", fontWeight: 700 }}>
               ≈ {estApiCalls}
             </strong>
@@ -230,6 +255,8 @@ export default function SearchForm({ onPreviewChange }: SearchFormProps) {
               setLocations([]);
               setSpreadsheetUrl("");
               setMaxPages(1);
+              setExtractionDepth(2);
+              setInterSearchDelaySec(10);
               setError(null);
               onPreviewChange?.([]);
             }}
@@ -261,6 +288,49 @@ export default function SearchForm({ onPreviewChange }: SearchFormProps) {
         </div>
       </div>
     </form>
+  );
+}
+
+function SegPicker({
+  values,
+  value,
+  onChange,
+  suffix,
+  widthEach = 34,
+}: {
+  values: number[];
+  value: number;
+  onChange: (v: number) => void;
+  suffix?: string;
+  widthEach?: number;
+}) {
+  return (
+    <div
+      className="flex overflow-hidden"
+      style={{ border: "1px solid var(--rule)", borderRadius: 3 }}
+    >
+      {values.map((n, i) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className="mono cursor-pointer font-semibold"
+          style={{
+            width: widthEach,
+            height: 26,
+            border: "none",
+            borderLeft: i === 0 ? "none" : "1px solid var(--rule)",
+            background: n === value ? "var(--accent)" : "var(--bg-card)",
+            color: n === value ? "#fff" : "var(--ink-2)",
+            fontSize: 12,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {n}
+          {suffix}
+        </button>
+      ))}
+    </div>
   );
 }
 

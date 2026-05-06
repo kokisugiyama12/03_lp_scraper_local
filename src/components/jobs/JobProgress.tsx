@@ -107,7 +107,8 @@ export default function JobProgress({
               ...job,
               totalResults: (job.totalResults || 0) + 1,
             });
-            if (event.data.phoneNumber) setPhoneCount((p) => p + 1);
+            if (event.data.phoneNumber1 || event.data.phoneNumber)
+              setPhoneCount((p) => p + 1);
             if (event.data.presidentName) setPresidentCount((p) => p + 1);
             // Update sub-status of running query for visual feedback
             setQueries((prev) =>

@@ -12,6 +12,9 @@ export interface SearchJob {
   completedQueries: number;
   totalResults: number;
   errorMessage: string | null;
+  maxPages?: number;
+  extractionDepth?: number;
+  interSearchDelaySec?: number;
   exportedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -33,8 +36,17 @@ export interface SearchResult {
   queryId: number;
   adUrl: string;
   landingUrl: string | null;
+  /** 旧 companyName (後方互換) */
   companyName: string | null;
+  companyNameFormal: string | null;
+  companyNameBrand: string | null;
+  /** 旧 phoneNumber (後方互換) */
   phoneNumber: string | null;
+  phoneNumber1: string | null;
+  phoneNumber2: string | null;
+  phoneNumber3: string | null;
+  phoneNumber4: string | null;
+  phoneNumber5: string | null;
   presidentName: string | null;
   adHeadline: string | null;
   locationName: string;
